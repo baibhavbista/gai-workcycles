@@ -3,6 +3,7 @@ import { ArrowRight, Target, Coffee, Square } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import type { CycleStatus } from '../types';
+import { BackButton } from '../components/BackButton';
 
 export function CycleReflectionScreen() {
   const { currentCycle, currentSession, completeCycle } = useWorkCyclesStore();
@@ -30,16 +31,17 @@ export function CycleReflectionScreen() {
   const isLastCycle = currentSession && currentCycleNumber >= currentSession.intentions.cyclesPlanned;
   
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6">
+    <div className="min-h-screen bg-[#F8FAFC] p-4">
       <div className="max-w-md mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <BackButton />
           <div className="text-center flex-1">
-            <div className="inline-flex items-center justify-center px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium mb-4">
+            <div className="inline-flex items-center justify-center px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium mb-3">
               Cycle {currentCycleNumber} Complete
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Cycle Reflection</h1>
-            <p className="text-gray-600">
+            <h1 className="text-xl font-bold text-gray-900 mb-1">Cycle Reflection</h1>
+            <p className="text-gray-600 text-sm">
               Take a moment to reflect on what happened during this cycle.
             </p>
           </div>
@@ -59,15 +61,15 @@ export function CycleReflectionScreen() {
           </div>
         )}
         
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Post-cycle review */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-            <h3 className="font-semibold text-gray-900 mb-2">Post-Cycle Review</h3>
-            <p className="text-gray-600 text-sm mb-4">
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <h3 className="font-semibold text-gray-900 mb-2 text-lg">Post-Cycle Review</h3>
+            <p className="text-gray-600 text-xs mb-3">
               Honest reflection helps you improve and learn from each cycle.
             </p>
             
-            <div className="space-y-4">
+            <div className="space-y-1">
               <div>
                 <label className="block font-medium text-gray-900 mb-3">
                   Completed cycle's target?
@@ -82,7 +84,7 @@ export function CycleReflectionScreen() {
                       onChange={(e) => setReflection(prev => ({ ...prev, status: e.target.value as CycleStatus }))}
                       className="w-4 h-4 text-[#482F60] border-gray-300 focus:ring-[#482F60]"
                     />
-                    <span className="ml-2 text-gray-700">Yes</span>
+                    <span className="ml-1 text-gray-700 text-sm">Yes</span>
                   </label>
                   <label className="flex items-center">
                     <input
@@ -93,7 +95,7 @@ export function CycleReflectionScreen() {
                       onChange={(e) => setReflection(prev => ({ ...prev, status: e.target.value as CycleStatus }))}
                       className="w-4 h-4 text-[#482F60] border-gray-300 focus:ring-[#482F60]"
                     />
-                    <span className="ml-2 text-gray-700">Partially</span>
+                    <span className="ml-1 text-gray-700 text-sm">Partially</span>
                   </label>
                   <label className="flex items-center">
                     <input
@@ -104,7 +106,7 @@ export function CycleReflectionScreen() {
                       onChange={(e) => setReflection(prev => ({ ...prev, status: e.target.value as CycleStatus }))}
                       className="w-4 h-4 text-[#482F60] border-gray-300 focus:ring-[#482F60]"
                     />
-                    <span className="ml-2 text-gray-700">No</span>
+                    <span className="ml-1 text-gray-700 text-sm">No</span>
                   </label>
                 </div>
               </div>
@@ -117,8 +119,8 @@ export function CycleReflectionScreen() {
                   value={reflection.noteworthy}
                   onChange={(e) => setReflection(prev => ({ ...prev, noteworthy: e.target.value }))}
                   placeholder="Any insights, breakthroughs, or notable observations..."
-                  className="w-full p-4 border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-[#482F60] focus:border-[#482F60] transition-colors"
-                  rows={3}
+                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
+                  rows={2}
                 />
               </div>
               
@@ -130,8 +132,8 @@ export function CycleReflectionScreen() {
                   value={reflection.distractions}
                   onChange={(e) => setReflection(prev => ({ ...prev, distractions: e.target.value }))}
                   placeholder="What pulled your attention away from the task..."
-                  className="w-full p-4 border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-[#482F60] focus:border-[#482F60] transition-colors"
-                  rows={3}
+                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
+                  rows={2}
                 />
               </div>
               
@@ -143,18 +145,18 @@ export function CycleReflectionScreen() {
                   value={reflection.improvement}
                   onChange={(e) => setReflection(prev => ({ ...prev, improvement: e.target.value }))}
                   placeholder="What would help you be more effective next time..."
-                  className="w-full p-4 border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-[#482F60] focus:border-[#482F60] transition-colors"
-                  rows={3}
+                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
+                  rows={2}
                 />
               </div>
             </div>
           </div>
           
           {/* Action buttons */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleSubmit('finish')}
-              className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-gray-200 hover:bg-gray-50 transition-colors duration-200"
+              className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-gray-200 hover:bg-gray-50 transition-colors duration-200 text-sm"
             >
               <Square className="w-6 h-6 text-gray-600 mb-2" />
               <span className="font-medium text-gray-900">Finish Session</span>
@@ -163,7 +165,7 @@ export function CycleReflectionScreen() {
             
             <button
               onClick={() => handleSubmit('break')}
-              className="flex flex-col items-center justify-center p-6 bg-[#482F60] text-white rounded-2xl hover:bg-[#3d2651] transition-colors duration-200"
+              className="flex flex-col items-center justify-center p-4 bg-[#482F60] text-white rounded-2xl hover:bg-[#3d2651] transition-colors duration-200 text-sm"
             >
               <Coffee className="w-6 h-6 mb-2" />
               <span className="font-medium">Take a Break</span>

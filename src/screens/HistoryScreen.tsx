@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Calendar, Clock, Target, TrendingUp, Table } from 'lucide-react';
+import { Calendar, Clock, Target, TrendingUp, Table } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { isElectron, listSessions as ipcListSessions } from '../electron-ipc';
+import { BackButton } from '../components/BackButton';
 
 export function HistoryScreen() {
   const { sessions, setScreen, setCurrentSession } = useWorkCyclesStore();
@@ -48,12 +49,7 @@ export function HistoryScreen() {
       <div className="max-w-md mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => setScreen('home')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </button>
+          <BackButton />
           <h1 className="text-xl font-bold text-gray-900">Session History</h1>
           <div className="w-9" /> {/* Spacer */}
         </div>

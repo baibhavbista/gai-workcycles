@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ArrowRight, Target, X, ChevronRight, ChevronDown } from 'lucide-react';
+import { ArrowRight, Target, ChevronRight, ChevronDown } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import type { SessionIntentions } from '../types';
+import { BackButton } from '../components/BackButton';
 
 export function SessionIntentionsScreen() {
   const { setScreen, startNewSession } = useWorkCyclesStore();
@@ -52,12 +53,7 @@ export function SessionIntentionsScreen() {
       <div className="max-w-md mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => setScreen('home')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
+          <BackButton />
           <div className="flex items-center gap-2">
             <Target className="w-5 h-5 text-[#482F60]" />
             <h1 className="text-xl font-bold text-gray-900">Session Prep</h1>

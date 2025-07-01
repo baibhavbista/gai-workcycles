@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, Lightbulb, Target } from 'lucide-react';
+import { BackButton } from '../components/BackButton';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import type { CycleData, EnergyLevel, MoraleLevel } from '../types';
@@ -36,27 +37,28 @@ export function PreCycleScreen() {
   const currentCycleNumber = (currentSession?.currentCycleIdx || 0) + 1;
   
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6">
+    <div className="min-h-screen bg-[#F8FAFC] p-4">
       <div className="max-w-md mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <BackButton />
           <div className="text-center flex-1">
-            <div className="inline-flex items-center justify-center px-4 py-2 bg-[#482F60] text-white rounded-full text-sm font-medium mb-4">
+            <div className="inline-flex items-center justify-center px-3 py-1.5 bg-[#482F60] text-white rounded-full text-xs font-medium mb-3">
               Cycle {currentCycleNumber}
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Pre-Cycle Planning</h1>
-            <p className="text-gray-600">
+            <h1 className="text-xl font-bold text-gray-900 mb-1">Pre-Cycle Planning</h1>
+            <p className="text-gray-600 text-sm">
               Take a moment to plan your approach for this {currentSession?.intentions.workMinutes || 30}-minute cycle.
             </p>
           </div>
           <VoiceRecorder onComplete={handleVoiceComplete} />
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Cycle preparation */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-            <h3 className="font-semibold text-gray-900 mb-2">Cycle Preparation</h3>
-            <p className="text-gray-600 text-sm mb-4">
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <h3 className="font-semibold text-gray-900 mb-2 text-lg">Cycle Preparation</h3>
+            <p className="text-gray-600 text-xs mb-3">
               Set your focus and assess your current state before starting.
             </p>
             
@@ -69,8 +71,8 @@ export function PreCycleScreen() {
                   value={cycleData.goal}
                   onChange={(e) => setCycleData(prev => ({ ...prev, goal: e.target.value }))}
                   placeholder="Be specific about what you want to achieve in the next 30 minutes..."
-                  className="w-full p-4 border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-[#482F60] focus:border-[#482F60] transition-colors"
-                  rows={3}
+                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
+                  rows={2}
                 />
               </div>
               
@@ -82,8 +84,8 @@ export function PreCycleScreen() {
                   value={cycleData.firstStep}
                   onChange={(e) => setCycleData(prev => ({ ...prev, firstStep: e.target.value }))}
                   placeholder="What's your first step? How will you begin..."
-                  className="w-full p-4 border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-[#482F60] focus:border-[#482F60] transition-colors"
-                  rows={3}
+                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
+                  rows={2}
                 />
               </div>
               
@@ -95,25 +97,25 @@ export function PreCycleScreen() {
                   value={cycleData.hazards}
                   onChange={(e) => setCycleData(prev => ({ ...prev, hazards: e.target.value }))}
                   placeholder="What might distract you or slow you down in this cycle..."
-                  className="w-full p-4 border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-[#482F60] focus:border-[#482F60] transition-colors"
-                  rows={3}
+                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
+                  rows={2}
                 />
               </div>
             </div>
           </div>
           
           {/* Energy and morale */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-            <div className="grid grid-cols-2 gap-6">
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <label className="block font-medium text-gray-900 mb-2 text-sm flex items-center gap-1">
                   <span className="text-yellow-500">⚡</span>
                   Energy Level <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={cycleData.energy}
                   onChange={(e) => setCycleData(prev => ({ ...prev, energy: e.target.value as EnergyLevel }))}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#482F60] focus:border-[#482F60] transition-colors"
+                  className="w-full p-2.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
                 >
                   <option value="">Select energy level</option>
                   <option value="High">High</option>
@@ -123,14 +125,14 @@ export function PreCycleScreen() {
               </div>
               
               <div>
-                <label className="block font-medium text-gray-900 mb-3 flex items-center gap-2">
+                <label className="block font-medium text-gray-900 mb-2 text-sm flex items-center gap-1">
                   <span className="text-red-500">❤️</span>
                   Morale Level <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={cycleData.morale}
                   onChange={(e) => setCycleData(prev => ({ ...prev, morale: e.target.value as MoraleLevel }))}
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#482F60] focus:border-[#482F60] transition-colors"
+                  className="w-full p-2.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
                 >
                   <option value="">Select morale level</option>
                   <option value="High">High</option>

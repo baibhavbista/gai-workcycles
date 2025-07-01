@@ -8,7 +8,10 @@ import { isElectron, createSession as ipcCreateSession, startCycle as ipcStartCy
 interface WorkCyclesState {
   // Navigation
   currentScreen: Screen;
+  navStack: Screen[];
   setScreen: (screen: Screen) => void;
+  navigate: (screen: Screen) => void;
+  goBack: () => void;
   
   // Current session
   currentSession: Session | null;
@@ -71,6 +74,7 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
     (set, get) => ({
       // Initial state
       currentScreen: 'home',
+      navStack: [],
       currentSession: null,
       currentCycle: null,
       timerStatus: 'idle',
@@ -80,6 +84,18 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
       
       // Navigation
       setScreen: (screen) => set({ currentScreen: screen }),
+      navigate: (screen) => set((state) => ({
+        navStack: [...state.navStack, state.currentScreen],
+        currentScreen: screen,
+      })),
+      goBack: () => set((state) => {
+        const stack = [...state.navStack];
+        const prev = stack.pop();
+        return {
+          navStack: stack,
+          currentScreen: prev ?? 'home',
+        };
+      }),
       setCurrentSession: (session) => set({ currentSession: session }),
       
       // Session management
