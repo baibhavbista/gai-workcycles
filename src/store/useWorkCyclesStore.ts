@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Screen, Session, CycleData, SessionIntentions, VoiceNote, TimerStatus } from '../types';
 
+// Electron IPC helpers (will be undefined in web build)
+import { isElectron, createSession as ipcCreateSession, startCycle as ipcStartCycle, finishCycle as ipcFinishCycle } from '../electron-ipc';
+
 interface WorkCyclesState {
   // Navigation
   currentScreen: Screen;
@@ -80,8 +83,25 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
       setCurrentSession: (session) => set({ currentSession: session }),
       
       // Session management
-      startNewSession: (intentions) => {
-        const sessionId = generateId();
+      startNewSession: async (intentions) => {
+        let sessionId: string;
+
+        if (isElectron()) {
+          // Map camelCase to snake_case expected by IPC
+          sessionId = await ipcCreateSession({
+            work_minutes: intentions.workMinutes,
+            break_minutes: intentions.breakMinutes,
+            cycles_planned: intentions.cyclesPlanned,
+            objective: intentions.objective,
+            importance: intentions.importance,
+            definition_of_done: intentions.definitionOfDone,
+            hazards: intentions.hazards,
+            concrete: intentions.concrete,
+          });
+        } else {
+          sessionId = generateId();
+        }
+
         const session: Session = {
           id: sessionId,
           startedAt: new Date(),
@@ -96,13 +116,28 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
         });
       },
       
-      startCycle: (cycleData) => {
+      startCycle: async (cycleData) => {
         const { currentSession } = get();
         if (!currentSession) return;
         
+        let cycleId: string;
+        if (isElectron()) {
+          cycleId = await ipcStartCycle({
+            sessionId: currentSession.id,
+            idx: currentSession.currentCycleIdx,
+            goal: cycleData.goal,
+            first_step: cycleData.firstStep,
+            hazards: cycleData.hazards,
+            energy: cycleData.energy,
+            morale: cycleData.morale,
+          });
+        } else {
+          cycleId = generateId();
+        }
+
         const cycle: CycleData = {
           ...cycleData,
-          id: generateId(),
+          id: cycleId,
           sessionId: currentSession.id,
           idx: currentSession.currentCycleIdx,
           startedAt: new Date(),
@@ -116,7 +151,7 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
         });
       },
       
-      completeCycle: (reflection) => {
+      completeCycle: async (reflection) => {
         const { currentSession, currentCycle } = get();
         if (!currentSession || !currentCycle) return;
         
@@ -132,6 +167,19 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
           cycles: updatedCycles,
           currentCycleIdx: currentSession.currentCycleIdx + 1,
         };
+
+        // Persist via IPC
+        if (isElectron()) {
+          await ipcFinishCycle({
+            cycleId: currentCycle.id,
+            status: reflection.status ?? 'partial',
+            noteworthy: reflection.noteworthy ?? '',
+            distractions: reflection.distractions ?? '',
+            improvement: reflection.improvement ?? '',
+            shouldCompleteSession: updatedSession.currentCycleIdx >= updatedSession.intentions.cyclesPlanned,
+            sessionId: currentSession.id,
+          });
+        }
         
         set({ 
           currentSession: updatedSession,
