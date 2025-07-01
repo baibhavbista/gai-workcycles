@@ -1,9 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Calendar, Clock, Target, TrendingUp, Table } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
+import { isElectron, listSessions as ipcListSessions } from '../electron-ipc';
 
 export function HistoryScreen() {
   const { sessions, setScreen, setCurrentSession } = useWorkCyclesStore();
+  
+  const [remoteSessions, setRemoteSessions] = useState<any[] | null>(null);
+
+  useEffect(() => {
+    if (isElectron()) {
+      ipcListSessions().then(setRemoteSessions).catch(console.error);
+    }
+  }, []);
+
+  const allSessions = isElectron() ? remoteSessions ?? [] : sessions;
   
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
@@ -47,7 +58,7 @@ export function HistoryScreen() {
           <div className="w-9" /> {/* Spacer */}
         </div>
         
-        {sessions.length === 0 ? (
+        {allSessions.length === 0 ? (
           <div className="text-center py-12">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-2xl mb-4">
               <Calendar className="w-8 h-8 text-gray-400" />
@@ -65,7 +76,7 @@ export function HistoryScreen() {
           </div>
         ) : (
           <div className="space-y-4">
-            {sessions.map((session) => (
+            {allSessions.map((session) => (
               <div key={session.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">

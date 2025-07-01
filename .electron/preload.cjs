@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('wc', {
   finishCycle: (payload) => ipcRenderer.invoke('wc:cycle-finish', payload),
   getSession: (sessionId) => ipcRenderer.invoke('wc:get-session', sessionId),
   vectorSearch: (query, k = 5) => ipcRenderer.invoke('wc:vector-search', query, k),
+  listSessions: () => ipcRenderer.invoke('wc:list-sessions'),
 }); 

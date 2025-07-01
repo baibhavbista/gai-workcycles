@@ -8,6 +8,7 @@ import {
   SessionPayload,
   CycleStartPayload,
   CycleFinishPayload,
+  listSessionsWithCycles,
 } from './db';
 import { setupVectorTable, indexCycleEmbedding, searchSimilar } from './vector';
 
@@ -22,7 +23,7 @@ const ICON_PATH = path.join(__dirname, 'assets', 'iconTemplate.png');
 function createWindow() {
   win = new BrowserWindow({
     width: 480,
-    height: 1000,
+    height: 950,
     frame: true,
     roundedCorners: true,
     resizable: true,
@@ -149,4 +150,8 @@ ipcMain.handle('wc:get-session', (_, sessionId: string) => {
 
 ipcMain.handle('wc:vector-search', async (_, query: string, k = 5) => {
   return searchSimilar(query, k);
+});
+
+ipcMain.handle('wc:list-sessions', () => {
+  return listSessionsWithCycles();
 }); 

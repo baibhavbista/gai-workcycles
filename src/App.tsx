@@ -45,7 +45,7 @@ function App() {
   };
   
   return (
-    <div className="w-full h-screen overflow-hidden">
+    <div className="w-full h-screen overflow-y-auto">
       {renderScreen()}
     </div>
   );

@@ -140,4 +140,34 @@ export function getSessionById(sessionId: string) {
   if (!session) return null;
   const cycles = getCyclesForSessionStmt.all(sessionId);
   return { ...session, cycles };
+}
+
+export function listSessionsWithCycles() {
+  const sessions = db.prepare('SELECT * FROM sessions ORDER BY started_at DESC').all();
+  return sessions.map((row: any) => {
+    const cycles = getCyclesForSessionStmt.all(row.id);
+    const intentions = {
+      objective: row.objective,
+      importance: row.importance,
+      definitionOfDone: row.definition_of_done,
+      hazards: row.hazards,
+      concrete: !!row.concrete,
+      workMinutes: row.work_minutes,
+      breakMinutes: row.break_minutes,
+      cyclesPlanned: row.cycles_planned,
+    };
+    return {
+      id: row.id,
+      startedAt: (() => {
+        const str = typeof row.started_at === 'string' ? row.started_at : '';
+        // Convert "YYYY-MM-DD HH:MM:SS" → "YYYY-MM-DDTHH:MM:SSZ"
+        const iso = str.includes('T') ? str : str.replace(' ', 'T') + 'Z';
+        return new Date(iso);
+      })(),
+      completed: !!row.completed,
+      intentions,
+      cycles,
+      currentCycleIdx: cycles.length,
+    };
+  });
 } 

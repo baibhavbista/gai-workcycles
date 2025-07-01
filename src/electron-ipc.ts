@@ -31,4 +31,10 @@ export const vectorSearch = (query: string, k = 5) => {
   const api = getApi();
   if (!api) throw new Error('Electron API not available');
   return api.vectorSearch(query, k) as Promise<Array<{ cycleId: string; score: number }>>;
+};
+
+export const listSessions = () => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.listSessions() as Promise<any[]>;
 }; 
