@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, globalShortcut, nativeImage, ipcMain } from 'electron';
+import { app, screen, BrowserWindow, Tray, Menu, globalShortcut, nativeImage, ipcMain } from 'electron';
 import path from 'node:path';
 import {
   insertSession,
@@ -51,14 +51,50 @@ function createWindow() {
   });
 }
 
+function showWindowRememberingBounds(win: BrowserWindow) {
+  const cursorPoint = screen.getCursorScreenPoint();
+  const display = screen.getDisplayNearestPoint(cursorPoint);
+  const { x, y, width, height } = display.workArea; // use workArea to avoid macOS menu bar etc.
+
+  const winBounds = win.getBounds();
+
+  // slightly to the right
+  const targetX = x + Math.round(Math.min((width * 0.6), ((width * 0.9) - winBounds.width)));
+  // centered on top
+  const targetY = y + Math.round((height - winBounds.height) / 2);
+
+  win.setBounds({ x: targetX, y: targetY, width: winBounds.width, height: winBounds.height });
+  win.show();
+
+  // win.focus();
+}
+
+function showOnCurrentSpace(win: BrowserWindow) {
+  // allow on all Spaces so macOS will instantiate in the active one
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
+
+  // 2) restore bounds & show
+  showWindowRememberingBounds(win);
+
+  // 3) as soon as it’s visible, “lock” it back to this Space only
+  //    using process.nextTick so it happens after the window actually shows
+  process.nextTick(() => {
+    win.setVisibleOnAllWorkspaces(false);
+    // not sure where to keep win.focus(). Seems to be working?
+    win.focus();
+  });
+}
+
 function toggleWindow() {
   if (!win) return;
   if (win.isVisible()) {
     win.hide();
   } else {
-    win.show();
+    showOnCurrentSpace(win);
+    // win.focus();
   }
 }
+
 
 function createTray() {
   let iconImage = nativeImage.createEmpty();
