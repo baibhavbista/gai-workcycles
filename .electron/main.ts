@@ -158,7 +158,7 @@ function createTray() {
   tray.setContextMenu(contextMenu);
 
   // On click, toggle visibility
-  tray.on('click', () => toggleWindow());
+  // tray.on('click', () => toggleWindow());
 }
 
 function registerGlobalHotkey(accelerator: string) {
