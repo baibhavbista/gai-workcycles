@@ -96,7 +96,16 @@ const finishCycleStmt = db.prepare(`
 `);
 
 const markSessionCompletedStmt = db.prepare(`
-  UPDATE sessions SET completed=1, ended_at=datetime('now') WHERE id=@id
+  UPDATE sessions SET 
+    completed=1, 
+    ended_at=datetime('now') 
+  WHERE id=@id
+`);
+
+const incrementCyclesCompletedStmt = db.prepare(`
+  UPDATE sessions SET 
+    cycles_completed = cycles_completed + 1 
+  WHERE id=@id
 `);
 
 const getSessionStmt = db.prepare(`
@@ -277,6 +286,9 @@ export function finishCycle(payload: CycleFinishPayload) {
     distractions: payload.distractions,
     improvement: payload.improvement,
   });
+
+  // Always increment completed count
+  incrementCyclesCompletedStmt.run({ id: payload.sessionId });
 
   if (payload.shouldCompleteSession) {
     markSessionCompletedStmt.run({ id: payload.sessionId });

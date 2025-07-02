@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   work_minutes     INTEGER NOT NULL,
   break_minutes    INTEGER NOT NULL,
   cycles_planned   INTEGER NOT NULL,
+  cycles_completed INTEGER NOT NULL DEFAULT 0,
   objective            TEXT,
   importance           TEXT,
   definition_of_done   TEXT,
