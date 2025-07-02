@@ -12,25 +12,24 @@ CREATE TABLE IF NOT EXISTS sessions (
   break_minutes    INTEGER NOT NULL,
   cycles_planned   INTEGER NOT NULL,
   cycles_completed INTEGER NOT NULL DEFAULT 0,
-  objective            TEXT,
-  importance           TEXT,
-  definition_of_done   TEXT,
-  hazards              TEXT,
-  concrete         INTEGER NOT NULL DEFAULT 0 CHECK(concrete IN (0,1)),
+  plan_objective       TEXT,
+  plan_importance      TEXT,
+  plan_done_definition TEXT,
+  plan_hazards         TEXT,
+  plan_concrete    INTEGER NOT NULL DEFAULT 0 CHECK(plan_concrete IN (0,1)),
   completed        INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0,1))
 );
--- FIXME: oh wait does this not have the full data?
 
 -- cycles ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cycles (
   id            TEXT PRIMARY KEY,
   session_id    TEXT NOT NULL,
   idx           INTEGER NOT NULL,
-  goal          TEXT,
-  first_step    TEXT,
-  hazards       TEXT,
-  energy        INTEGER CHECK(energy IN (0,1,2)),   -- 0=Low 1=Med 2=High
-  morale        INTEGER CHECK(morale IN (0,1,2)),
+  plan_goal          TEXT,
+  plan_first_step    TEXT,
+  plan_hazards       TEXT,
+  plan_energy        INTEGER CHECK(plan_energy IN (0,1,2)),   -- 0=Low 1=Med 2=High
+  plan_morale        INTEGER CHECK(plan_morale IN (0,1,2)),
   review_status        INTEGER CHECK(review_status IN (0,1,2)),   -- 0=No 1=Half 2=Yes
   review_noteworthy    TEXT,
   review_distractions  TEXT,

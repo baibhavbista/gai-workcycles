@@ -70,7 +70,7 @@ try {
 const insertSessionStmt = db.prepare(`
   INSERT INTO sessions (
     id, started_at, work_minutes, break_minutes, cycles_planned,
-    objective, importance, definition_of_done, hazards, concrete, completed
+    plan_objective, plan_importance, plan_done_definition, plan_hazards, plan_concrete, completed
   ) VALUES (
     @id, datetime('now'), @work_minutes, @break_minutes, @cycles_planned,
     @objective, @importance, @definition_of_done, @hazards, @concrete, 0
@@ -79,7 +79,7 @@ const insertSessionStmt = db.prepare(`
 
 const insertCycleStmt = db.prepare(`
   INSERT INTO cycles (
-    id, session_id, idx, goal, first_step, hazards, energy, morale, started_at
+    id, session_id, idx, plan_goal, plan_first_step, plan_hazards, plan_energy, plan_morale, started_at
   ) VALUES (
     @id, @session_id, @idx, @goal, @first_step, @hazards, @energy, @morale, datetime('now')
   )
@@ -300,8 +300,11 @@ export function getSessionById(sessionId: string) {
   if (!session) return null;
   const cycles = getCyclesForSessionStmt.all(sessionId).map((row: any) => ({
     ...row,
-    energy: energyFromInt[row.energy] as any,
-    morale: energyFromInt[row.morale] as any,
+    goal: row.plan_goal,
+    firstStep: row.plan_first_step,
+    hazards: row.plan_hazards,
+    energy: energyFromInt[row.plan_energy] as any,
+    morale: energyFromInt[row.plan_morale] as any,
     status: row.review_status !== null ? (statusFromInt[row.review_status] as any) : undefined,
     noteworthy: row.review_noteworthy,
     distractions: row.review_distractions,
@@ -315,19 +318,22 @@ export function listSessionsWithCycles() {
   return sessions.map((row: any) => {
     const cycles = getCyclesForSessionStmt.all(row.id).map((c: any) => ({
       ...c,
-      energy: energyFromInt[c.energy] as any,
-      morale: energyFromInt[c.morale] as any,
+      goal: c.plan_goal,
+      firstStep: c.plan_first_step,
+      hazards: c.plan_hazards,
+      energy: energyFromInt[c.plan_energy] as any,
+      morale: energyFromInt[c.plan_morale] as any,
       status: c.review_status !== null ? (statusFromInt[c.review_status] as any) : undefined,
       noteworthy: c.review_noteworthy,
       distractions: c.review_distractions,
       improvement: c.review_improvement,
     }));
     const intentions = {
-      objective: row.objective,
-      importance: row.importance,
-      definitionOfDone: row.definition_of_done,
-      hazards: row.hazards,
-      concrete: !!row.concrete,
+      objective: row.plan_objective,
+      importance: row.plan_importance,
+      definitionOfDone: row.plan_done_definition,
+      hazards: row.plan_hazards,
+      concrete: !!row.plan_concrete,
       workMinutes: row.work_minutes,
       breakMinutes: row.break_minutes,
       cyclesPlanned: row.cycles_planned,
