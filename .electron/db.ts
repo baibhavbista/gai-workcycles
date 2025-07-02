@@ -82,7 +82,7 @@ const finishCycleStmt = db.prepare(`
 `);
 
 const markSessionCompletedStmt = db.prepare(`
-  UPDATE sessions SET completed=1 WHERE id=@id
+  UPDATE sessions SET completed=1, ended_at=datetime('now') WHERE id=@id
 `);
 
 const getSessionStmt = db.prepare(`
