@@ -3,11 +3,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   id               TEXT PRIMARY KEY,      -- UUID
   started_at       DATETIME NOT NULL,
   ended_at         DATETIME,              -- <- NEW
-  review_accomplishments TEXT,
-  review_comparison      TEXT,
-  review_obstacles       TEXT,
-  review_successes       TEXT,
-  review_takeaways       TEXT,
   work_minutes     INTEGER NOT NULL,
   break_minutes    INTEGER NOT NULL,
   cycles_planned   INTEGER NOT NULL,
@@ -17,6 +12,11 @@ CREATE TABLE IF NOT EXISTS sessions (
   plan_done_definition TEXT,
   plan_hazards         TEXT,
   plan_concrete    INTEGER NOT NULL DEFAULT 0 CHECK(plan_concrete IN (0,1)),
+  review_accomplishments TEXT,
+  review_comparison      TEXT,
+  review_obstacles       TEXT,
+  review_successes       TEXT,
+  review_takeaways       TEXT,
   completed        INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0,1))
 );
 
@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS cycles (
   id            TEXT PRIMARY KEY,
   session_id    TEXT NOT NULL,
   idx           INTEGER NOT NULL,
+  started_at    DATETIME NOT NULL,
+  ended_at      DATETIME,
   plan_goal          TEXT,
   plan_first_step    TEXT,
   plan_hazards       TEXT,
@@ -34,8 +36,6 @@ CREATE TABLE IF NOT EXISTS cycles (
   review_noteworthy    TEXT,
   review_distractions  TEXT,
   review_improvement   TEXT,
-  started_at    DATETIME NOT NULL,
-  ended_at      DATETIME,
   FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
   UNIQUE(session_id, idx)
 );
