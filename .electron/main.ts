@@ -9,6 +9,9 @@ import {
   CycleStartPayload,
   CycleFinishPayload,
   listSessionsWithCycles,
+  saveWindowBounds,
+  getWindowBounds,
+  WindowBounds,
 } from './db';
 import { setupVectorTable, indexCycleEmbedding, searchSimilar } from './vector';
 
@@ -55,6 +58,16 @@ function createWindow() {
     }
   });
 
+  // Save bounds whenever moved or resized
+  const saveBounds = () => {
+    if (!win) return;
+    const cursor = screen.getCursorScreenPoint();
+    const disp = screen.getDisplayNearestPoint(cursor);
+    saveWindowBounds(String(disp.id), win.getBounds());
+  };
+  win.on('move', saveBounds);
+  win.on('resize', saveBounds);
+
   win.on('closed', () => {
     win = null;
   });
@@ -63,16 +76,24 @@ function createWindow() {
 function showWindowRememberingBounds(win: BrowserWindow) {
   const cursorPoint = screen.getCursorScreenPoint();
   const display = screen.getDisplayNearestPoint(cursorPoint);
-  const { x, y, width, height } = display.workArea; // use workArea to avoid macOS menu bar etc.
 
-  const winBounds = win.getBounds();
+  const saved: WindowBounds | undefined = getWindowBounds(String(display.id));
 
-  // slightly to the right
-  const targetX = x + Math.round(Math.min((width * 0.6), ((width * 0.9) - winBounds.width)));
-  // centered on top
-  const targetY = y + Math.round((height - winBounds.height) / 2);
+  if (saved) {
+    win.setBounds(saved);
+  } else {
+    // the default position where we want to show the window
+    const { x, y, width, height } = display.workArea; // use workArea to avoid macOS menu bar etc.
 
-  win.setBounds({ x: targetX, y: targetY, width: winBounds.width, height: winBounds.height });
+    const winBounds = win.getBounds();
+
+    // slightly to the right
+    const targetX = x + Math.round(Math.min((width * 0.6), ((width * 0.9) - winBounds.width)));
+    // centered on top
+    const targetY = y + Math.round((height - winBounds.height) / 2);
+
+    win.setBounds({ x: targetX, y: targetY, width: winBounds.width, height: winBounds.height });
+  }
   win.show();
 
   // win.focus();

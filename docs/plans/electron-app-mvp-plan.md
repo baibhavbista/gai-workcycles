@@ -100,7 +100,7 @@ TABLE voice_notes (
 
 ### 4 · MVP Launch Requirements
 
-1. Global hotkey toggles a frameless 480 × 1000 window.
+1. Global hotkey toggles a frameless 480 × 950 window.
 2. Full 6-cycle flow with editable work/break lengths and chimes.
 3. Voice-note capture (click-start/stop) populates Work/Distraction lists; audio auto-deletes after 30 days.
 4. Whisper transcription + GPT-4o JSON formatting auto-fill Pre-Cycle fields.

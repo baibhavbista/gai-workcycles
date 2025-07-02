@@ -21,6 +21,17 @@ export const db = new Database(DB_PATH);
 
 db.pragma('journal_mode = WAL');
 
+// Ensure window_bounds table exists for persisting Electron window positions
+db.exec(`
+  CREATE TABLE IF NOT EXISTS window_bounds (
+    display_id TEXT PRIMARY KEY,
+    x INTEGER NOT NULL,
+    y INTEGER NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL
+  );
+`);
+
 // Load schema once
 const schemaPath = path.join(__dirname, 'schema.sql');
 const schema = fs.readFileSync(schemaPath, 'utf-8');
@@ -67,6 +78,20 @@ const getCyclesForSessionStmt = db.prepare(`
   SELECT * FROM cycles WHERE session_id = ? ORDER BY idx ASC
 `);
 
+const getWindowBoundsStmt = db.prepare<[string], WindowBoundsQuery>(
+  `SELECT x, y, width, height FROM window_bounds WHERE display_id = ?`
+);
+
+const upsertWindowBoundsStmt = db.prepare(
+  `INSERT INTO window_bounds (display_id, x, y, width, height)
+   VALUES (@display_id, @x, @y, @width, @height)
+   ON CONFLICT(display_id) DO UPDATE SET
+     x=excluded.x,
+     y=excluded.y,
+     width=excluded.width,
+     height=excluded.height`
+);
+
 // Types for payloads (minimal)
 export interface SessionPayload {
   work_minutes: number;
@@ -97,6 +122,20 @@ export interface CycleFinishPayload {
   improvement: string;
   shouldCompleteSession: boolean;
   sessionId: string;
+}
+
+export interface WindowBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface WindowBoundsQuery {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 // ---------- API functions ----------
@@ -170,4 +209,27 @@ export function listSessionsWithCycles() {
       currentCycleIdx: cycles.length,
     };
   });
+}
+
+/**
+ * Persist the bounds (position + size) for a given display.
+ * Uses an UPSERT so subsequent saves overwrite the previous record.
+ */
+export function saveWindowBounds(displayId: string, bounds: WindowBounds) {
+  upsertWindowBoundsStmt.run({ display_id: displayId, ...bounds });
+}
+
+/**
+ * Retrieve the previously saved bounds for a display, if any.
+ * Returns `undefined` if no record exists.
+ */
+export function getWindowBounds(displayId: string): WindowBounds | undefined {
+  const row = getWindowBoundsStmt.get(displayId);
+  if (!row) return undefined;
+  return {
+    x: row.x,
+    y: row.y,
+    width: row.width,
+    height: row.height,
+  };
 } 
