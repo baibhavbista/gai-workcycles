@@ -37,4 +37,36 @@ export const listSessions = () => {
   const api = getApi();
   if (!api) throw new Error('Electron API not available');
   return api.listSessions() as Promise<any[]>;
+};
+
+// -------- settings --------
+
+export const getSettings = () => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.getSettings() as Promise<any>;
+};
+
+export const saveSettings = (patch: any) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.saveSettings(patch) as Promise<{ ok: boolean }>;
+};
+
+export const saveOpenAIKey = (plainKey: string) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.saveOpenAIKey(plainKey) as Promise<{ ok: boolean }>;
+};
+
+export const getOpenAIKey = () => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.getOpenAIKey() as Promise<string | null>;
+};
+
+export const isEncryptionAvailable = () => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.isEncryptionAvailable() as Promise<boolean>;
 }; 

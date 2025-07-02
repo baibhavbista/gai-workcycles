@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, History, Target, Play, Calendar, TrendingUp, Bot } from 'lucide-react';
+import { Clock, Target, Play, Calendar, TrendingUp, Bot, Settings as SettingsIcon } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { isElectron, listSessions } from '../electron-ipc';
 
@@ -29,7 +29,15 @@ export function HomeScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6">
+    <div className="min-h-screen bg-[#F8FAFC] p-6 relative">
+      {/* Settings gear button */}
+      <button
+        onClick={() => setScreen('settings')}
+        className="absolute top-4 right-4 p-2 rounded-full bg-[#F8FAFC] hover:bg-gray-100 text-gray-600 shadow-sm"
+        aria-label="Settings"
+      >
+        <SettingsIcon className="w-5 h-5" />
+      </button>
       <div className="max-w-md mx-auto">
         {/* Header */}
         <div className="text-center mb-8">

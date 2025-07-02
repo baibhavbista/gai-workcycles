@@ -9,7 +9,8 @@ export type Screen =
   | 'session-review' 
   | 'session-overview'
   | 'session-spreadsheet'
-  | 'history';
+  | 'history'
+  | 'settings';
 
 export type TimerStatus = 'idle' | 'running' | 'paused' | 'completed';
 
@@ -61,4 +62,15 @@ export interface VoiceNote {
   kind: 'work' | 'distraction';
   timestamp: Date;
   text: string;
+}
+
+// Application-level settings persisted via SQLite
+export interface Settings {
+  aiEnabled: boolean;
+  workMinutes: number;
+  breakMinutes: number;
+  cyclesPlanned: number;
+  chimeEnabled: boolean;
+  notifyEnabled: boolean;
+  hotkey: string;
 }

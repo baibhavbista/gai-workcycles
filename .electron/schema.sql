@@ -40,4 +40,21 @@ CREATE TABLE IF NOT EXISTS voice_notes (
   timestamp DATETIME,
   text TEXT,
   audio_path TEXT
-); 
+);
+
+-- application settings (single row)
+CREATE TABLE IF NOT EXISTS app_settings (
+  id TEXT PRIMARY KEY,                -- always 'default'
+  ai_enabled INTEGER DEFAULT 0,
+  openai_cipher BLOB,
+  work_minutes INTEGER DEFAULT 30,
+  break_minutes INTEGER DEFAULT 5,
+  cycles_planned INTEGER DEFAULT 6,
+  chime_enabled INTEGER DEFAULT 1,
+  notify_enabled INTEGER DEFAULT 1,
+  hotkey TEXT DEFAULT 'Control+Shift+U',
+  openai_cipher_encrypted INTEGER DEFAULT 0
+);
+
+-- ensure row exists
+INSERT OR IGNORE INTO app_settings (id) VALUES ('default'); 

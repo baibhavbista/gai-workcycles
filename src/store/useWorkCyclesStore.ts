@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Screen, Session, CycleData, SessionIntentions, VoiceNote, TimerStatus } from '../types';
+import type { Settings } from '../types';
 
 // Electron IPC helpers (will be undefined in web build)
-import { isElectron, createSession as ipcCreateSession, startCycle as ipcStartCycle, finishCycle as ipcFinishCycle } from '../electron-ipc';
+import { isElectron, createSession as ipcCreateSession, startCycle as ipcStartCycle, finishCycle as ipcFinishCycle, getSettings as ipcGetSettings, saveSettings as ipcSaveSettings } from '../electron-ipc';
 
 interface WorkCyclesState {
   // Navigation
@@ -40,6 +41,13 @@ interface WorkCyclesState {
   // Voice notes (placeholder)
   voiceNotes: VoiceNote[];
   addVoiceNote: (note: Omit<VoiceNote, 'id'>) => void;
+  
+  // App settings
+  settings: Settings | null;
+  
+  // Settings handlers
+  loadSettings: () => Promise<void>;
+  updateSettings: (patch: Partial<Settings>) => Promise<void>;
 }
 
 const generateId = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -81,6 +89,7 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
       timeRemaining: 0,
       sessions: [],
       voiceNotes: [],
+      settings: null,
       
       // Navigation
       setScreen: (screen) => set({ currentScreen: screen }),
@@ -270,6 +279,46 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
           id: generateId(),
         };
         set({ voiceNotes: [...voiceNotes, newNote] });
+      },
+      
+      // Settings handlers
+      loadSettings: async () => {
+        if (isElectron()) {
+          try {
+            const data = await ipcGetSettings();
+            set({ settings: data });
+          } catch (err) {
+            /* eslint-disable no-console */
+            console.error('Failed to load settings', err);
+          }
+        } else {
+          // fallback defaults for web demo
+          set({
+            settings: {
+              aiEnabled: false,
+              workMinutes: 30,
+              breakMinutes: 5,
+              cyclesPlanned: 6,
+              chimeEnabled: true,
+              notifyEnabled: true,
+              hotkey: 'Control+Shift+U',
+            },
+          });
+        }
+      },
+
+      updateSettings: async (patch) => {
+        if (isElectron()) {
+          try {
+            await ipcSaveSettings(patch);
+            // merge locally
+            set((state) => ({ settings: { ...state.settings!, ...patch } }));
+          } catch (err) {
+            console.error('Failed to save settings', err);
+          }
+        } else {
+          set((state) => ({ settings: { ...state.settings!, ...patch } }));
+        }
       },
     }),
     {

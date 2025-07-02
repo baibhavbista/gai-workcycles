@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useWorkCyclesStore } from './store/useWorkCyclesStore';
 import { HomeScreen } from './screens/HomeScreen';
 import { SessionIntentionsScreen } from './screens/SessionIntentionsScreen';
@@ -11,9 +11,14 @@ import { SessionReviewScreen } from './screens/SessionReviewScreen';
 import { SessionOverviewScreen } from './screens/SessionOverviewScreen';
 import { SessionSpreadsheetScreen } from './screens/SessionSpreadsheetScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
 
 function App() {
-  const { currentScreen } = useWorkCyclesStore();
+  const { currentScreen, loadSettings } = useWorkCyclesStore();
+  
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
   
   const renderScreen = () => {
     switch (currentScreen) {
@@ -39,6 +44,8 @@ function App() {
         return <SessionSpreadsheetScreen />;
       case 'history':
         return <HistoryScreen />;
+      case 'settings':
+        return <SettingsScreen />;
       default:
         return <HomeScreen />;
     }

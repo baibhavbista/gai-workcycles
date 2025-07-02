@@ -1,4 +1,4 @@
-import { app, screen, BrowserWindow, Tray, Menu, globalShortcut, nativeImage, ipcMain } from 'electron';
+import { app, screen, BrowserWindow, Tray, Menu, globalShortcut, nativeImage, ipcMain, safeStorage } from 'electron';
 import path from 'node:path';
 import {
   insertSession,
@@ -12,6 +12,10 @@ import {
   saveWindowBounds,
   getWindowBounds,
   WindowBounds,
+  getSettings,
+  saveSettings,
+  saveEncryptedKey,
+  getEncryptedKey,
 } from './db';
 import { setupVectorTable, indexCycleEmbedding, searchSimilar } from './vector';
 
@@ -20,6 +24,7 @@ import { setupVectorTable, indexCycleEmbedding, searchSimilar } from './vector';
 
 let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
+let currentHotkey: string | null = null;
 
 const ICON_PATH = path.join(__dirname, 'assets', 'iconTemplate.png');
 
@@ -150,20 +155,30 @@ function createTray() {
   tray.on('click', () => toggleWindow());
 }
 
+function registerGlobalHotkey(accelerator: string) {
+  // Unregister previous if exists
+  if (currentHotkey) {
+    globalShortcut.unregister(currentHotkey);
+  }
+  const ok = globalShortcut.register(accelerator, () => {
+    toggleWindow();
+  });
+  if (!ok) {
+    console.warn(`Global shortcut registration failed for ${accelerator}`);
+  } else {
+    currentHotkey = accelerator;
+  }
+  return ok;
+}
+
 app.whenReady().then(async () => {
   await setupVectorTable();
   createWindow();
   createTray();
 
-  // Register global shortcut Ctrl+Shift+U
-  const success = globalShortcut.register('Control+Shift+U', () => {
-    toggleWindow();
-  });
-
-  if (!success) {
-    // eslint-disable-next-line no-console
-    console.warn('Global shortcut registration failed');
-  }
+  // Load user settings to register hotkey
+  const settings = getSettings();
+  registerGlobalHotkey(settings.hotkey);
 });
 
 // On macOS, recreate window when dock icon is clicked and there are no other
@@ -220,4 +235,65 @@ ipcMain.handle('wc:vector-search', async (_, query: string, k = 5) => {
 
 ipcMain.handle('wc:list-sessions', () => {
   return listSessionsWithCycles();
+});
+
+// -------- Settings IPC --------
+
+ipcMain.handle('wc:get-settings', () => {
+  return getSettings();
+});
+
+ipcMain.handle('wc:save-settings', (_e, patch: Partial<ReturnType<typeof getSettings>>) => {
+  saveSettings(patch);
+
+  // Hotkey update if changed
+  if (patch.hotkey && patch.hotkey !== currentHotkey) {
+    registerGlobalHotkey(patch.hotkey);
+  }
+  return { ok: true };
+});
+
+ipcMain.handle('wc:save-openai-key', (_e, plainKey: string) => {
+  if (!plainKey) {
+    saveEncryptedKey(null, 0);
+    return { ok: true };
+  }
+
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      const cipher = safeStorage.encryptString(plainKey);
+      saveEncryptedKey(cipher, 1);
+    } else {
+      console.warn('safeStorage encryption not available, storing key in plain text');
+      saveEncryptedKey(Buffer.from(plainKey, 'utf-8'), 0);
+    }
+  } catch (err) {
+    console.error('Failed to encrypt/store OpenAI key', err);
+    throw err;
+  }
+  return { ok: true };
+});
+
+ipcMain.handle('wc:get-openai-key', () => {
+  const row = getEncryptedKey();
+  if (!row) return null;
+  const { cipher, encrypted } = row;
+
+  if (encrypted) {
+    if (safeStorage.isEncryptionAvailable()) {
+      try {
+        return safeStorage.decryptString(Buffer.from(cipher));
+      } catch {
+        return null;
+      }
+    }
+    // Cannot decrypt on this platform/session
+    return null;
+  }
+  // plain text
+  return cipher.toString();
+});
+
+ipcMain.handle('wc:is-encryption-available', () => {
+  return safeStorage.isEncryptionAvailable();
 }); 

@@ -37,6 +37,17 @@ const schemaPath = path.join(__dirname, 'schema.sql');
 const schema = fs.readFileSync(schemaPath, 'utf-8');
 db.exec(schema);
 
+// Simple migration: add column openai_cipher_encrypted if it doesn't exist
+try {
+  const info = db.prepare(`PRAGMA table_info(app_settings)`).all() as any[];
+  const hasCol = info.some((r) => r.name === 'openai_cipher_encrypted');
+  if (!hasCol) {
+    db.exec(`ALTER TABLE app_settings ADD COLUMN openai_cipher_encrypted INTEGER DEFAULT 0;`);
+  }
+} catch {
+  // ignore migration errors
+}
+
 // ---------- prepared statements ----------
 const insertSessionStmt = db.prepare(`
   INSERT INTO sessions (
@@ -136,6 +147,75 @@ interface WindowBoundsQuery {
   y: number;
   width: number;
   height: number;
+}
+
+// ----------------------------------
+// Settings table helpers
+// ----------------------------------
+
+export interface Settings {
+  aiEnabled: boolean;
+  workMinutes: number;
+  breakMinutes: number;
+  cyclesPlanned: number;
+  chimeEnabled: boolean;
+  notifyEnabled: boolean;
+  hotkey: string;
+}
+
+const getSettingsStmt = db.prepare(`SELECT * FROM app_settings WHERE id='default'`);
+
+const updateSettingsStmt = db.prepare(`
+  UPDATE app_settings SET
+    ai_enabled=@ai_enabled,
+    work_minutes=@work_minutes,
+    break_minutes=@break_minutes,
+    cycles_planned=@cycles_planned,
+    chime_enabled=@chime_enabled,
+    notify_enabled=@notify_enabled,
+    hotkey=@hotkey
+  WHERE id='default'
+`);
+
+const getCipherStmt = db.prepare(`SELECT openai_cipher, openai_cipher_encrypted FROM app_settings WHERE id='default'`);
+
+const updateCipherStmt = db.prepare(`UPDATE app_settings SET openai_cipher = @cipher, openai_cipher_encrypted=@enc WHERE id='default'`);
+
+export function getSettings(): Settings {
+  const row: any = getSettingsStmt.get();
+  return {
+    aiEnabled: !!row.ai_enabled,
+    workMinutes: row.work_minutes,
+    breakMinutes: row.break_minutes,
+    cyclesPlanned: row.cycles_planned,
+    chimeEnabled: !!row.chime_enabled,
+    notifyEnabled: !!row.notify_enabled,
+    hotkey: row.hotkey,
+  };
+}
+
+export function saveSettings(patch: Partial<Settings>) {
+  const current = getSettings();
+  const next: Settings = { ...current, ...patch } as Settings;
+  updateSettingsStmt.run({
+    ai_enabled: next.aiEnabled ? 1 : 0,
+    work_minutes: next.workMinutes,
+    break_minutes: next.breakMinutes,
+    cycles_planned: next.cyclesPlanned,
+    chime_enabled: next.chimeEnabled ? 1 : 0,
+    notify_enabled: next.notifyEnabled ? 1 : 0,
+    hotkey: next.hotkey,
+  });
+}
+
+export function saveEncryptedKey(cipher: Buffer | null, encryptedFlag: number) {
+  updateCipherStmt.run({ cipher, enc: encryptedFlag });
+}
+
+export function getEncryptedKey(): { cipher: Buffer; encrypted: boolean } | null {
+  const row: any = getCipherStmt.get();
+  if (!row || !row.openai_cipher) return null;
+  return { cipher: row.openai_cipher as Buffer, encrypted: !!row.openai_cipher_encrypted };
 }
 
 // ---------- API functions ----------
