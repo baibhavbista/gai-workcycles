@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, History, Target, Play, Calendar, TrendingUp } from 'lucide-react';
+import { Clock, History, Target, Play, Calendar, TrendingUp, Bot } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { isElectron, listSessions } from '../electron-ipc';
 
@@ -114,6 +114,15 @@ export function HomeScreen() {
           
         </div>
         
+        {/* Floating AI chat button */}
+        <button
+          onClick={() => alert('Yet to be implemented')}
+          className="fixed bottom-20 right-6 w-10 h-10 rounded-full bg-[#482F60] text-white flex items-center justify-center shadow-lg hover:bg-[#3d2651] transition z-40"
+          aria-label="Chat with AI"
+        >
+          <Bot className="w-5 h-5" />
+        </button>
+
         {/* Floating help button */}
         <button
           onClick={() => setShowInfo(true)}
