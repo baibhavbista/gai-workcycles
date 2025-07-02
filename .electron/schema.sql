@@ -1,35 +1,41 @@
--- sessions table
+-- sessions --------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS sessions (
-  id TEXT PRIMARY KEY,
-  started_at DATETIME,
-  work_minutes INTEGER,
-  break_minutes INTEGER,
-  cycles_planned INTEGER,
-  objective TEXT,
-  importance TEXT,
-  definition_of_done TEXT,
-  hazards TEXT,
-  concrete INTEGER DEFAULT 0,
-  completed INTEGER DEFAULT 0
+  id               TEXT PRIMARY KEY,      -- UUID
+  started_at       DATETIME NOT NULL,
+  ended_at         DATETIME,              -- <- NEW
+  work_minutes     INTEGER NOT NULL,
+  break_minutes    INTEGER NOT NULL,
+  cycles_planned   INTEGER NOT NULL,
+  objective            TEXT,
+  importance           TEXT,
+  definition_of_done   TEXT,
+  hazards              TEXT,
+  concrete         INTEGER NOT NULL DEFAULT 0 CHECK(concrete IN (0,1)),
+  completed        INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0,1))
 );
 
--- cycles table
+-- cycles ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cycles (
-  id TEXT PRIMARY KEY,
-  session_id TEXT REFERENCES sessions(id),
-  idx INTEGER,
-  goal TEXT,
-  first_step TEXT,
-  hazards TEXT,
-  energy TEXT,
-  morale TEXT,
-  status TEXT,
-  noteworthy TEXT,
-  distractions TEXT,
-  improvement TEXT,
-  started_at DATETIME,
-  ended_at DATETIME
+  id            TEXT PRIMARY KEY,
+  session_id    TEXT NOT NULL,
+  idx           INTEGER NOT NULL,
+  goal          TEXT,
+  first_step    TEXT,
+  hazards       TEXT,
+  energy        INTEGER CHECK(energy IN (0,1,2)),   -- 0=Low 1=Med 2=High
+  morale        INTEGER CHECK(morale IN (0,1,2)),
+  status        INTEGER CHECK(status IN (0,1,2)),   -- 0=No 1=Half 2=Yes
+  noteworthy    TEXT,
+  distractions  TEXT,
+  improvement   TEXT,
+  started_at    DATETIME NOT NULL,
+  ended_at      DATETIME,
+  FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  UNIQUE(session_id, idx)
 );
+
+CREATE INDEX IF NOT EXISTS idx_cycles_session ON cycles(session_id);
+
 
 -- voice notes table
 CREATE TABLE IF NOT EXISTS voice_notes (

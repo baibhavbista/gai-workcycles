@@ -125,13 +125,13 @@ export interface CycleStartPayload {
   goal: string;
   first_step: string;
   hazards: string;
-  energy: string;
-  morale: string;
+  energy: 'Low' | 'Medium' | 'High';
+  morale: 'Low' | 'Medium' | 'High';
 }
 
 export interface CycleFinishPayload {
   cycleId: string;
-  status: string;
+  status: 'hit' | 'miss' | 'partial';
   noteworthy: string;
   distractions: string;
   improvement: string;
@@ -226,6 +226,13 @@ export function getEncryptedKey(): { cipher: Buffer; encrypted: boolean } | null
   return { cipher: row.openai_cipher as Buffer, encrypted: !!row.openai_cipher_encrypted };
 }
 
+// --- enum mapping helpers ---
+const energyMap = { Low: 0, Medium: 1, High: 2 } as const;
+const statusMap = { miss: 0, partial: 1, hit: 2 } as const;
+
+const energyFromInt = ['Low', 'Medium', 'High'] as const;
+const statusFromInt = ['miss', 'partial', 'hit'] as const;
+
 // ---------- API functions ----------
 export function insertSession(payload: SessionPayload): string {
   const id = uuid();
@@ -242,8 +249,8 @@ export function insertCycle(payload: CycleStartPayload): string {
     goal: payload.goal,
     first_step: payload.first_step,
     hazards: payload.hazards,
-    energy: payload.energy,
-    morale: payload.morale,
+    energy: energyMap[payload.energy],
+    morale: energyMap[payload.morale],
   });
   return id;
 }
@@ -251,7 +258,7 @@ export function insertCycle(payload: CycleStartPayload): string {
 export function finishCycle(payload: CycleFinishPayload) {
   finishCycleStmt.run({
     id: payload.cycleId,
-    status: payload.status,
+    status: statusMap[payload.status],
     noteworthy: payload.noteworthy,
     distractions: payload.distractions,
     improvement: payload.improvement,
@@ -265,14 +272,24 @@ export function finishCycle(payload: CycleFinishPayload) {
 export function getSessionById(sessionId: string) {
   const session = getSessionStmt.get(sessionId);
   if (!session) return null;
-  const cycles = getCyclesForSessionStmt.all(sessionId);
+  const cycles = getCyclesForSessionStmt.all(sessionId).map((row: any) => ({
+    ...row,
+    energy: energyFromInt[row.energy] as any,
+    morale: energyFromInt[row.morale] as any,
+    status: row.status !== null ? (statusFromInt[row.status] as any) : undefined,
+  }));
   return { ...session, cycles };
 }
 
 export function listSessionsWithCycles() {
   const sessions = db.prepare('SELECT * FROM sessions ORDER BY started_at DESC').all();
   return sessions.map((row: any) => {
-    const cycles = getCyclesForSessionStmt.all(row.id);
+    const cycles = getCyclesForSessionStmt.all(row.id).map((c: any) => ({
+      ...c,
+      energy: energyFromInt[c.energy] as any,
+      morale: energyFromInt[c.morale] as any,
+      status: c.status !== null ? (statusFromInt[c.status] as any) : undefined,
+    }));
     const intentions = {
       objective: row.objective,
       importance: row.importance,

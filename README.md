@@ -1,6 +1,6 @@
 # WorkCycles Productivity App
 
-A modern web application implementing the WorkCycles methodology for structured productivity sessions with focused work cycles, intentional planning, and reflective review.
+WorkCycles is an offline-first **Electron 27** desktop application (macOS & Windows) built with React 18 + TypeScript. It helps you run UltraWorking-style work cycles while staying entirely local—sessions, voice notes, and embeddings are stored in SQLite / LanceDB on your device.
 
 ## 🎯 Overview
 
@@ -22,12 +22,18 @@ WorkCycles is a React-based productivity application that helps users maintain f
 - **Reflection Tools**: Post-cycle and post-session review forms
 - **History Tracking**: Complete session history with success metrics
 
+### Desktop-Specific Features
+- **System Tray Timer**: Optional live MM:SS countdown in the macOS menu-bar (Windows/Linux tray TBD)
+- **Global Hotkey**: Show/hide window with user-configurable accelerator (default Ctrl+Shift+U)
+- **Settings Panel**: Toggle AI features, default cycle lengths, chime/notification, tray timer, and hotkey.
+
 ### Advanced Features
 - **Spreadsheet View**: Interactive table showing all cycle data in a familiar format
 - **CSV Export**: Download session data for external analysis
-- **Voice Recording**: Simulated voice-to-text for quick note-taking
+- **Voice Recording**: Local mic capture; Whisper transcription (offline)
 - **Responsive Design**: Mobile-first design that works across all devices
-- **Data Persistence**: Local storage with automatic session saving
+- **Data Persistence**: SQLite (better-sqlite3) with WAL; LanceDB vector search; state synced via IPC
+- **Desktop Extras**: Global hotkey, tray/menu-bar countdown timer, native notifications & chime
 
 ## 🛠 Technology Stack
 
