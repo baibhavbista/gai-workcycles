@@ -69,4 +69,12 @@ export const isEncryptionAvailable = () => {
   const api = getApi();
   if (!api) throw new Error('Electron API not available');
   return api.isEncryptionAvailable() as Promise<boolean>;
+};
+
+// tray title
+export const updateTray = (title: string) => {
+  const api = getApi();
+  if (!api) return; // no-op in web
+  // fire and forget
+  api.updateTray(title);
 }; 

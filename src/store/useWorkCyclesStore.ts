@@ -4,7 +4,7 @@ import type { Screen, Session, CycleData, SessionIntentions, VoiceNote, TimerSta
 import type { Settings } from '../types';
 
 // Electron IPC helpers (will be undefined in web build)
-import { isElectron, createSession as ipcCreateSession, startCycle as ipcStartCycle, finishCycle as ipcFinishCycle, getSettings as ipcGetSettings, saveSettings as ipcSaveSettings } from '../electron-ipc';
+import { isElectron, createSession as ipcCreateSession, startCycle as ipcStartCycle, finishCycle as ipcFinishCycle, getSettings as ipcGetSettings, saveSettings as ipcSaveSettings, updateTray as ipcUpdateTray } from '../electron-ipc';
 
 interface WorkCyclesState {
   // Navigation
@@ -96,6 +96,12 @@ const reviveDates = (obj: any): any => {
   
   return result;
 };
+
+function fmt(seconds: number) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
 
 export const useWorkCyclesStore = create<WorkCyclesState>()(
   persist(
@@ -287,11 +293,18 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
           timeRemaining: 0,
           currentScreen: 'cycle-reflection'
         });
+
+        if (isElectron()) {
+          ipcUpdateTray('');
+        }
       },
       
       tick: () => {
         const { timerStatus, timeRemaining } = get();
-        if (timerStatus !== 'running') return;
+        if (timerStatus !== 'running') {
+          if (isElectron()) ipcUpdateTray('');
+          return;
+        }
         
         if (timeRemaining <= 1) {
           const { settings } = get();
@@ -311,8 +324,17 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
             timerStatus: 'completed',
             currentScreen: 'cycle-reflection'
           });
+
+          if (isElectron()) ipcUpdateTray('');
         } else {
-          set({ timeRemaining: timeRemaining - 1 });
+          const newTime = timeRemaining - 1;
+          if (isElectron()) {
+            const { settings } = get();
+            if (settings?.trayTimerEnabled) {
+              ipcUpdateTray(fmt(newTime));
+            }
+          }
+          set({ timeRemaining: newTime });
         }
       },
       
@@ -332,6 +354,9 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
           try {
             const data = await ipcGetSettings();
             set({ settings: data });
+            if (!data.trayTimerEnabled) {
+              ipcUpdateTray('');
+            }
           } catch (err) {
             /* eslint-disable no-console */
             console.error('Failed to load settings', err);
@@ -347,6 +372,7 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
               chimeEnabled: true,
               notifyEnabled: true,
               hotkey: 'Control+Shift+U',
+              trayTimerEnabled: true,
             },
           });
         }
@@ -357,7 +383,16 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
           try {
             await ipcSaveSettings(patch);
             // merge locally
-            set((state) => ({ settings: { ...state.settings!, ...patch } }));
+            set((state) => {
+              const merged = { ...state.settings!, ...patch } as Settings;
+              // handle tray toggle
+              if (!merged.trayTimerEnabled) {
+                ipcUpdateTray('');
+              } else if (merged.trayTimerEnabled && state.timerStatus === 'running') {
+                ipcUpdateTray(fmt(state.timeRemaining));
+              }
+              return { settings: merged };
+            });
           } catch (err) {
             console.error('Failed to save settings', err);
           }

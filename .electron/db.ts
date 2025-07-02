@@ -44,6 +44,10 @@ try {
   if (!hasCol) {
     db.exec(`ALTER TABLE app_settings ADD COLUMN openai_cipher_encrypted INTEGER DEFAULT 0;`);
   }
+  const hasTray = info.some((r) => r.name === 'tray_timer_enabled');
+  if (!hasTray) {
+    db.exec(`ALTER TABLE app_settings ADD COLUMN tray_timer_enabled INTEGER DEFAULT 1;`);
+  }
 } catch {
   // ignore migration errors
 }
@@ -161,6 +165,7 @@ export interface Settings {
   chimeEnabled: boolean;
   notifyEnabled: boolean;
   hotkey: string;
+  trayTimerEnabled: boolean;
 }
 
 const getSettingsStmt = db.prepare(`SELECT * FROM app_settings WHERE id='default'`);
@@ -173,6 +178,7 @@ const updateSettingsStmt = db.prepare(`
     cycles_planned=@cycles_planned,
     chime_enabled=@chime_enabled,
     notify_enabled=@notify_enabled,
+    tray_timer_enabled=@tray_timer_enabled,
     hotkey=@hotkey
   WHERE id='default'
 `);
@@ -190,6 +196,7 @@ export function getSettings(): Settings {
     cyclesPlanned: row.cycles_planned,
     chimeEnabled: !!row.chime_enabled,
     notifyEnabled: !!row.notify_enabled,
+    trayTimerEnabled: !!row.tray_timer_enabled,
     hotkey: row.hotkey,
   };
 }
@@ -204,6 +211,7 @@ export function saveSettings(patch: Partial<Settings>) {
     cycles_planned: next.cyclesPlanned,
     chime_enabled: next.chimeEnabled ? 1 : 0,
     notify_enabled: next.notifyEnabled ? 1 : 0,
+    tray_timer_enabled: next.trayTimerEnabled ? 1 : 0,
     hotkey: next.hotkey,
   });
 }

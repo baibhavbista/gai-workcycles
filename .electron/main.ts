@@ -26,7 +26,7 @@ let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let currentHotkey: string | null = null;
 
-const ICON_PATH = path.join(__dirname, 'assets', 'iconTemplate.png');
+const ICON_PATH = path.join(__dirname, 'assets', 'icons', 'png', '256x256.png');
 
 function createWindow() {
   win = new BrowserWindow({
@@ -36,6 +36,7 @@ function createWindow() {
     frame: true,
     roundedCorners: true,
     resizable: true,
+    icon: ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -136,7 +137,12 @@ function createTray() {
   try {
     const loaded = nativeImage.createFromPath(ICON_PATH);
     if (!loaded.isEmpty()) {
-      iconImage = loaded;
+      if (process.platform === 'darwin') {
+        iconImage = loaded.resize({ width: 16, height: 16 });
+        iconImage.setTemplateImage(true);
+      } else {
+        iconImage = loaded.resize({ width: 24, height: 24 });
+      }
     }
   } catch {
     // ignore, fallback to empty image
@@ -179,6 +185,13 @@ app.whenReady().then(async () => {
   // Load user settings to register hotkey
   const settings = getSettings();
   registerGlobalHotkey(settings.hotkey);
+
+  // Set dock icon on macOS during dev
+  if (process.platform === 'darwin') {
+    try {
+      app.dock.setIcon(ICON_PATH);
+    } catch {}
+  }
 });
 
 // On macOS, recreate window when dock icon is clicked and there are no other
@@ -296,4 +309,13 @@ ipcMain.handle('wc:get-openai-key', () => {
 
 ipcMain.handle('wc:is-encryption-available', () => {
   return safeStorage.isEncryptionAvailable();
+});
+
+// ---- Tray title updates ----
+ipcMain.handle('wc:update-tray', (_e, title: string) => {
+  if (!tray) return { ok: false };
+  if (process.platform === 'darwin') {
+    tray.setTitle(title || '');
+  }
+  return { ok: true };
 }); 

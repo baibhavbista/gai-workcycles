@@ -13,4 +13,5 @@ contextBridge.exposeInMainWorld('wc', {
   saveOpenAIKey: (plainKey) => ipcRenderer.invoke('wc:save-openai-key', plainKey),
   getOpenAIKey: () => ipcRenderer.invoke('wc:get-openai-key'),
   isEncryptionAvailable: () => ipcRenderer.invoke('wc:is-encryption-available'),
+  updateTray: (title) => ipcRenderer.invoke('wc:update-tray', title),
 }); 

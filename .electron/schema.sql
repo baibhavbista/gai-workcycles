@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
   cycles_planned INTEGER DEFAULT 6,
   chime_enabled INTEGER DEFAULT 1,
   notify_enabled INTEGER DEFAULT 1,
+  tray_timer_enabled INTEGER DEFAULT 1,
   hotkey TEXT DEFAULT 'Control+Shift+U',
   openai_cipher_encrypted INTEGER DEFAULT 0
 );

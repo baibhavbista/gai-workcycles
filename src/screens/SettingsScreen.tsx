@@ -14,6 +14,7 @@ export function SettingsScreen() {
     chimeEnabled: true,
     notifyEnabled: true,
     hotkey: 'Control+Shift+U',
+    trayTimerEnabled: true,
   });
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -187,6 +188,20 @@ export function SettingsScreen() {
               className="w-5 h-5 text-[#482F60] border-gray-300 rounded focus:ring-[#482F60]"
             />
             <span className="text-sm text-gray-700">Show desktop notification</span>
+          </label>
+        </div>
+
+        {/* Tray Timer */}
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mb-6">
+          <h3 className="font-semibold text-gray-900 mb-2">Menu-bar Countdown</h3>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={local.trayTimerEnabled}
+              onChange={(e) => setLocal({ ...local, trayTimerEnabled: e.target.checked })}
+              className="w-5 h-5 text-[#482F60] border-gray-300 rounded focus:ring-[#482F60]"
+            />
+            <span className="text-sm text-gray-700">Show countdown in system tray / menu-bar</span>
           </label>
         </div>
 

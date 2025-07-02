@@ -73,4 +73,5 @@ export interface Settings {
   chimeEnabled: boolean;
   notifyEnabled: boolean;
   hotkey: string;
+  trayTimerEnabled: boolean;
 }
