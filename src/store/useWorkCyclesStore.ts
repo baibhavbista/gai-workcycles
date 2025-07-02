@@ -367,7 +367,7 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
             settings: {
               aiEnabled: false,
               workMinutes: 30,
-              breakMinutes: 5,
+              breakMinutes: 10,
               cyclesPlanned: 6,
               chimeEnabled: true,
               notifyEnabled: true,

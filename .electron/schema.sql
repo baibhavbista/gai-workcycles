@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
   ai_enabled INTEGER DEFAULT 0,
   openai_cipher BLOB,
   work_minutes INTEGER DEFAULT 30,
-  break_minutes INTEGER DEFAULT 5,
+  break_minutes INTEGER DEFAULT 10,
   cycles_planned INTEGER DEFAULT 6,
   chime_enabled INTEGER DEFAULT 1,
   notify_enabled INTEGER DEFAULT 1,
