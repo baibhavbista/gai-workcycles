@@ -3,6 +3,7 @@ import { CheckCircle, ArrowRight } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import { BackButton } from '../components/BackButton';
+import { isElectron, saveSessionReview } from '../electron-ipc';
 
 export function SessionReviewScreen() {
   const { currentSession, completeSession } = useWorkCyclesStore();
@@ -14,7 +15,10 @@ export function SessionReviewScreen() {
     takeaways: '',
   });
   
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    if (isElectron()) {
+      await saveSessionReview(currentSession!.id, review);
+    }
     completeSession();
   };
   

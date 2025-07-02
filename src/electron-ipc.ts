@@ -77,4 +77,10 @@ export const updateTray = (title: string) => {
   if (!api) return; // no-op in web
   // fire and forget
   api.updateTray(title);
+};
+
+export const saveSessionReview = (sessionId: string, review: any) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.saveSessionReview(sessionId, review) as Promise<{ ok: boolean }>;
 }; 

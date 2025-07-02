@@ -3,6 +3,11 @@ CREATE TABLE IF NOT EXISTS sessions (
   id               TEXT PRIMARY KEY,      -- UUID
   started_at       DATETIME NOT NULL,
   ended_at         DATETIME,              -- <- NEW
+  review_accomplishments TEXT,
+  review_comparison      TEXT,
+  review_obstacles       TEXT,
+  review_successes       TEXT,
+  review_takeaways       TEXT,
   work_minutes     INTEGER NOT NULL,
   break_minutes    INTEGER NOT NULL,
   cycles_planned   INTEGER NOT NULL,
@@ -13,6 +18,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   concrete         INTEGER NOT NULL DEFAULT 0 CHECK(concrete IN (0,1)),
   completed        INTEGER NOT NULL DEFAULT 0 CHECK(completed IN (0,1))
 );
+-- FIXME: oh wait does this not have the full data?
 
 -- cycles ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS cycles (
@@ -24,10 +30,10 @@ CREATE TABLE IF NOT EXISTS cycles (
   hazards       TEXT,
   energy        INTEGER CHECK(energy IN (0,1,2)),   -- 0=Low 1=Med 2=High
   morale        INTEGER CHECK(morale IN (0,1,2)),
-  status        INTEGER CHECK(status IN (0,1,2)),   -- 0=No 1=Half 2=Yes
-  noteworthy    TEXT,
-  distractions  TEXT,
-  improvement   TEXT,
+  review_status        INTEGER CHECK(review_status IN (0,1,2)),   -- 0=No 1=Half 2=Yes
+  review_noteworthy    TEXT,
+  review_distractions  TEXT,
+  review_improvement   TEXT,
   started_at    DATETIME NOT NULL,
   ended_at      DATETIME,
   FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,

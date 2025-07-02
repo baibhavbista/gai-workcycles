@@ -16,6 +16,7 @@ import {
   saveSettings,
   saveEncryptedKey,
   getEncryptedKey,
+  saveSessionReview,
 } from './db';
 import { setupVectorTable, indexCycleEmbedding, searchSimilar } from './vector';
 
@@ -317,5 +318,10 @@ ipcMain.handle('wc:update-tray', (_e, title: string) => {
   if (process.platform === 'darwin') {
     tray.setTitle(title || '');
   }
+  return { ok: true };
+});
+
+ipcMain.handle('wc:session-review-save', (_e, sessionId: string, review) => {
+  saveSessionReview(sessionId, review);
   return { ok: true };
 }); 

@@ -48,6 +48,20 @@ try {
   if (!hasTray) {
     db.exec(`ALTER TABLE app_settings ADD COLUMN tray_timer_enabled INTEGER DEFAULT 1;`);
   }
+
+  // Add session review columns if missing
+  const reviewCols = [
+    'review_accomplishments',
+    'review_comparison',
+    'review_obstacles',
+    'review_successes',
+    'review_takeaways',
+  ];
+  for (const col of reviewCols) {
+    if (!info.some((r) => r.name === col)) {
+      db.exec(`ALTER TABLE sessions ADD COLUMN ${col} TEXT;`);
+    }
+  }
 } catch {
   // ignore migration errors
 }
@@ -73,10 +87,10 @@ const insertCycleStmt = db.prepare(`
 
 const finishCycleStmt = db.prepare(`
   UPDATE cycles SET
-    status=@status,
-    noteworthy=@noteworthy,
-    distractions=@distractions,
-    improvement=@improvement,
+    review_status=@status,
+    review_noteworthy=@noteworthy,
+    review_distractions=@distractions,
+    review_improvement=@improvement,
     ended_at=datetime('now')
   WHERE id=@id
 `);
@@ -276,7 +290,10 @@ export function getSessionById(sessionId: string) {
     ...row,
     energy: energyFromInt[row.energy] as any,
     morale: energyFromInt[row.morale] as any,
-    status: row.status !== null ? (statusFromInt[row.status] as any) : undefined,
+    status: row.review_status !== null ? (statusFromInt[row.review_status] as any) : undefined,
+    noteworthy: row.review_noteworthy,
+    distractions: row.review_distractions,
+    improvement: row.review_improvement,
   }));
   return { ...session, cycles };
 }
@@ -288,7 +305,10 @@ export function listSessionsWithCycles() {
       ...c,
       energy: energyFromInt[c.energy] as any,
       morale: energyFromInt[c.morale] as any,
-      status: c.status !== null ? (statusFromInt[c.status] as any) : undefined,
+      status: c.review_status !== null ? (statusFromInt[c.review_status] as any) : undefined,
+      noteworthy: c.review_noteworthy,
+      distractions: c.review_distractions,
+      improvement: c.review_improvement,
     }));
     const intentions = {
       objective: row.objective,
@@ -337,4 +357,36 @@ export function getWindowBounds(displayId: string): WindowBounds | undefined {
     width: row.width,
     height: row.height,
   };
+}
+
+// -------- Session Review ---------
+export interface SessionReviewPayload {
+  accomplishments: string;
+  comparison: string;
+  obstacles: string;
+  successes: string;
+  takeaways: string;
+}
+
+const saveSessionReviewStmt = db.prepare(`
+  UPDATE sessions SET
+    review_accomplishments=@accomp,
+    review_comparison=@comp,
+    review_obstacles=@obs,
+    review_successes=@succ,
+    review_takeaways=@take,
+    completed=1,
+    ended_at=datetime('now')
+  WHERE id=@id
+`);
+
+export function saveSessionReview(id: string, payload: SessionReviewPayload) {
+  saveSessionReviewStmt.run({
+    id,
+    accomp: payload.accomplishments,
+    comp: payload.comparison,
+    obs: payload.obstacles,
+    succ: payload.successes,
+    take: payload.takeaways,
+  });
 } 

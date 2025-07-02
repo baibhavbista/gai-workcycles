@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld('wc', {
   getOpenAIKey: () => ipcRenderer.invoke('wc:get-openai-key'),
   isEncryptionAvailable: () => ipcRenderer.invoke('wc:is-encryption-available'),
   updateTray: (title) => ipcRenderer.invoke('wc:update-tray', title),
+  saveSessionReview: (id, review) => ipcRenderer.invoke('wc:session-review-save', id, review),
 }); 
