@@ -18,6 +18,8 @@ export function SettingsScreen() {
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [encAvailable, setEncAvailable] = useState(true);
+  const [hotkeyError, setHotkeyError] = useState<string | null>(null);
+  const [savedToast, setSavedToast] = useState(false);
 
   useEffect(() => {
     if (settings) setLocal(settings);
@@ -39,7 +41,28 @@ export function SettingsScreen() {
       .catch(() => {});
   }, []);
 
+  const isValidAccelerator = (acc: string) => {
+    if (!acc) return false;
+    // Must have at least one '+' (modifier + key)
+    if (!acc.includes('+')) return false;
+    const parts = acc.split('+');
+    const key = parts.pop()?.trim();
+    if (!key) return false;
+    const modifierPattern = /^(Ctrl|Control|Cmd|Command|Alt|Option|Shift|Super|Meta)$/i;
+    if (!parts.every(p => modifierPattern.test(p.trim()))) return false;
+
+    // Key cannot contain '-' or '+' and must be single char alnum OR Fx key
+    if (/^F([1-9]|1[0-9]|2[0-4])$/i.test(key)) return true;
+    return /^[A-Za-z0-9]$/.test(key);
+  };
+
   const handleSave = async () => {
+    // validate hotkey
+    if (!isValidAccelerator(local.hotkey)) {
+      setHotkeyError('Invalid hotkey format');
+      return;
+    }
+
     await updateSettings(local);
     if (local.aiEnabled && apiKey) {
       await saveOpenAIKey(apiKey.trim());
@@ -47,7 +70,12 @@ export function SettingsScreen() {
       await saveOpenAIKey(''); // clear stored key
     }
     setApiKey('');
-    goBack();
+    setHotkeyError(null);
+    setSavedToast(true);
+    setTimeout(() => {
+      setSavedToast(false);
+      goBack();
+    }, 1500);
   };
 
   return (
@@ -93,7 +121,7 @@ export function SettingsScreen() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {encAvailable ? 'Stored securely on your device.' : 'Stored locally in plain text.'}
+                {encAvailable ? 'Stored securely on your device.' : 'Stored locally in plain text (electron safeStorage API not available on your device)'}
               </p>
             </div>
           )}
@@ -172,7 +200,13 @@ export function SettingsScreen() {
             className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
             placeholder="Control+Shift+U"
           />
-          <p className="text-xs text-gray-500 mt-1">Requires app restart on some platforms.</p>
+          {hotkeyError ? (
+            <p className="text-xs text-red-600 mt-1">{hotkeyError}</p>
+          ) : (
+            <p className="text-xs text-gray-500 mt-1">
+              Current registered: {settings?.hotkey}. Requires app restart on some platforms.
+            </p>
+          )}
         </div>
 
         {/* Save button */}
@@ -182,6 +216,13 @@ export function SettingsScreen() {
         >
           Save Settings
         </button>
+
+        {/* Saved toast */}
+        {savedToast && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg transition-opacity">
+            Saved ✓
+          </div>
+        )}
       </div>
     </div>
   );

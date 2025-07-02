@@ -6,17 +6,18 @@ import type { SessionIntentions } from '../types';
 import { BackButton } from '../components/BackButton';
 
 export function SessionIntentionsScreen() {
-  const { setScreen, startNewSession } = useWorkCyclesStore();
-  const [intentions, setIntentions] = useState<SessionIntentions>({
+  const { setScreen, startNewSession, settings } = useWorkCyclesStore();
+
+  const [intentions, setIntentions] = useState<SessionIntentions>(() => ({
     objective: '',
     importance: '',
     definitionOfDone: '',
     hazards: '',
     concrete: false,
-    workMinutes: 30,
-    breakMinutes: 5,
-    cyclesPlanned: 6,
-  });
+    workMinutes: settings?.workMinutes ?? 30,
+    breakMinutes: settings?.breakMinutes ?? 5,
+    cyclesPlanned: settings?.cyclesPlanned ?? 6,
+  }));
   const [showSettings, setShowSettings] = useState(false);
   
   const handleSubmit = (e: React.FormEvent) => {

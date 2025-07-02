@@ -52,6 +52,26 @@ interface WorkCyclesState {
 
 const generateId = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
 
+// simple chime using Web Audio API (500ms sine beep)
+function playChime() {
+  try {
+    const AudioCtx = (window.AudioContext || (window as any).webkitAudioContext);
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    osc.connect(ctx.destination);
+    osc.start();
+    setTimeout(() => {
+      osc.stop();
+      ctx.close();
+    }, 500);
+  } catch {
+    // ignore audio failures
+  }
+}
+
 // Helper function to recursively convert date strings back to Date objects
 const reviveDates = (obj: any): any => {
   if (obj === null || typeof obj !== 'object') {
@@ -249,6 +269,19 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
       },
       
       finishEarly: () => {
+        const { settings } = get();
+        // feedback per settings
+        if (settings?.chimeEnabled) playChime();
+        if (settings?.notifyEnabled && 'Notification' in window) {
+          if (Notification.permission === 'granted') {
+            new Notification('Cycle finished early');
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then((p) => {
+              if (p === 'granted') new Notification('Cycle finished early');
+            });
+          }
+        }
+
         set({ 
           timerStatus: 'completed',
           timeRemaining: 0,
@@ -261,6 +294,18 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
         if (timerStatus !== 'running') return;
         
         if (timeRemaining <= 1) {
+          const { settings } = get();
+          if (settings?.chimeEnabled) playChime();
+          if (settings?.notifyEnabled && 'Notification' in window) {
+            if (Notification.permission === 'granted') {
+              new Notification('Work cycle complete', { body: 'Time for reflection' });
+            } else if (Notification.permission !== 'denied') {
+              Notification.requestPermission().then((p) => {
+                if (p === 'granted') new Notification('Work cycle complete', { body: 'Time for reflection' });
+              });
+            }
+          }
+
           set({ 
             timeRemaining: 0,
             timerStatus: 'completed',
