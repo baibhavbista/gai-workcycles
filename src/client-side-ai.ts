@@ -199,7 +199,8 @@ export const mergeDataOnVoiceComplete = (setterFn: (arg0: { (prev: any): any; (p
       const merged = { ...prev };
       for (const [key, value] of Object.entries(filled)) {
         // if value is null or empty string, skip
-        if (value === null || value === '') continue;
+        //   lol sometimes GPT responds with the string "null"
+        if (value === null || value === '' || value === undefined || value === 'undefined' || value === 'null') continue;
         if (typeof key !== 'string') continue;
 
         // locate schema definition for this key

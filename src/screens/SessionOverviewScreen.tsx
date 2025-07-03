@@ -81,13 +81,13 @@ ${currentSession.cycles.map((cycle, idx) => `
             </p>
           </div>
           <div className="flex gap-2">
-            <button
+            {/* <button
               onClick={() => setScreen('session-spreadsheet')}
               className="flex items-center gap-2 px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
             >
               <Table className="w-4 h-4" />
               Spreadsheet
-            </button>
+            </button> */}
             <button
               onClick={handleCopyMarkdown}
               className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"

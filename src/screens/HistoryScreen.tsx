@@ -125,13 +125,13 @@ export function HistoryScreen() {
                 </div>
 
                 {/* Action button */}
-                <button
+                {/* <button
                   onClick={() => handleViewSpreadsheet(session)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium"
                 >
                   <Table className="w-4 h-4" />
                   View as Spreadsheet
-                </button>
+                </button> */}
                 
                 {session.intentions.objective && (
                   <div className="mt-3 pt-3 border-t border-gray-100">
