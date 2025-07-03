@@ -1,4 +1,4 @@
-import { generateEmbedding, generateSessionSummary, storeEmbedding } from './embeddings.ts';
+import { generateEmbedding, generateSessionSummary, storeEmbedding } from './db.ts';
 import { markJobProcessing, updateJobStatus } from './db.ts';
 
 // Batch size for OpenAI API calls (as per plan)

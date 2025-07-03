@@ -207,3 +207,142 @@ for (const [col, val] of Object.entries(row)) {
 3. Toggle offline mode, create another cycle → ensure it lands in `embed_jobs`.
 4. Kill and relaunch app → worker resumes, embeds after network returns.
 5. Ask "What went well last session?" → system retrieves review\_successes fields.
+
+
+-------
+
+# Detailed Implementation Plan for Embeddings System
+
+## Phase 1: Foundation Setup
+
+### 1.1 Dependencies & Configuration
+- Add LanceDB, LangGraph, and OpenAI SDK dependencies
+- Set up LanceDB database connection and schema
+- Configure OpenAI client with encrypted API key storage
+- Add embedding version management system
+
+### 1.2 Database Schema Extensions
+- Create `embed_jobs` table in SQLite for offline queue
+- Add embedding-related columns/tables as needed
+- Set up LanceDB table with the schema from the plan
+
+### 1.3 Core Infrastructure
+- Create embedding utilities module (`.electron/embeddings/`)
+- Set up field label mapping (from plan section 9)
+- Create LanceDB connection and table management
+- Build batch processing utilities for OpenAI API calls
+
+## Phase 2: Job Queue System
+
+### 2.1 Job Management
+- Create `embed_jobs` table operations (insert, update, delete)
+- Build job creation functions for each trigger point
+- Implement job status tracking (`pending`, `processing`, `done`, `error`)
+- Create cleanup utilities for completed jobs
+
+### 2.2 Job Triggers Integration
+- Hook into existing save operations:
+  - Field saves (SessionIntentionsScreen, PreCycleScreen, CycleReflectionScreen)
+  - Cycle end saves (CycleReflectionScreen → next cycle or break)
+  - Session debrief saves (SessionReviewScreen)
+- Ensure jobs are created both online and offline
+
+## Phase 3: LangGraph Workflows
+
+### 3.1 Field-Level Embedding Graph
+- Create graph: `FetchFieldJobs → BatchText → CallOpenAI → UpsertVectors → MarkDone`
+- Handle batching (96 inputs per request as per plan)
+- Error handling and retry logic
+- Progress tracking and logging
+
+### 3.2 Cycle-Level Embedding Graph
+- Create graph: `FetchCycleJobs → CombineFields → CallOpenAI → UpsertVectors → MarkDone`
+- Logic to combine plan + review fields into single text
+- Handle cycles that may not be complete yet
+
+### 3.3 Session-Level Embedding Graph
+- Create graph: `FetchSessionJobs → GenerateSummary → CallOpenAI → EmbedSummary → UpsertVectors → MarkDone`
+- Two-step process: GPT-4o-mini summary + embedding
+- Summary length control (≤200 tokens as per plan)
+
+## Phase 4: Background Worker
+
+### 4.1 Worker Architecture
+- Create background worker that runs independently
+- Connectivity checking before processing jobs
+- Graceful handling of network interruptions
+- Worker state management (start/stop/pause)
+
+### 4.2 Worker Integration
+- Start worker on app launch
+- Handle app restart scenarios
+- Worker status reporting for UI
+- Queue priority management (field → cycle → session)
+
+## Phase 5: Search & Retrieval
+
+### 5.1 Vector Search Implementation
+- Create search functions for each level
+- Implement cascading search logic from plan section 5
+- Query vector generation from user input
+- Result ranking and filtering
+
+### 5.2 Deduplication Logic
+- Implement deduplication by `cycle_id`/`session_id`
+- Result merging across levels
+- Relevance scoring adjustment
+
+## Phase 6: UI Integration
+
+### 6.1 Search Interface
+- Create search component/screen
+- Query input with real-time suggestions
+- Results display with level indicators
+- Context highlighting in results
+
+### 6.2 Status Indicators
+- Embedding queue status in UI
+- Sync progress indicators
+- Offline mode handling in search
+- Error state displays
+
+## Phase 7: Analytics Foundation
+
+### 7.1 Search Analytics
+- Track search queries and results
+- Measure search effectiveness
+- User interaction patterns
+- Performance metrics
+
+### 7.2 Data Insights Preparation
+- Set up infrastructure for future analytics workflows
+- Create data aggregation utilities
+- Prepare for distraction clustering and correlation analysis
+
+## Implementation Order
+
+1. **Week 1-2**: Phase 1 (Foundation)
+2. **Week 3**: Phase 2 (Job Queue)
+3. **Week 4-5**: Phase 3 (LangGraph Workflows)
+4. **Week 6**: Phase 4 (Background Worker)
+5. **Week 7**: Phase 5 (Search & Retrieval)
+6. **Week 8**: Phase 6 (UI Integration)
+7. **Week 9**: Phase 7 (Analytics Foundation)
+
+## Key Integration Points
+
+- **Zustand Store**: Extend for embedding status and search state
+- **Electron Main Process**: Background worker management
+- **Settings Screen**: API key management and embedding preferences
+- **Existing Screens**: Job trigger integration
+- **Database Layer**: Coordination between SQLite and LanceDB
+
+## Success Metrics
+
+- All three embedding levels working correctly
+- Offline queue processing reliably
+- Search results relevant and fast
+- Background processing doesn't impact app performance
+- Cost stays within projected bounds (≪$0.05/user/year)
+
+This plan follows the embeddings document closely while breaking it into manageable implementation phases. Each phase builds on the previous one and can be tested independently.

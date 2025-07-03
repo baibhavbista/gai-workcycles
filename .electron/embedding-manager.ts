@@ -3,7 +3,13 @@ import {
   searchEmbeddings,
   cascadingSearch,
   resetOpenAIClient
-} from './embeddings.ts';
+} from './db.ts';
+import { 
+  enhancedSearchEngine,
+  EnhancedSearchResult,
+  SearchOptions,
+  SearchFilter
+} from './search-engine.ts';
 import {
   getJobQueueStatus, 
   getPendingEmbedJobs, 
@@ -166,7 +172,7 @@ export class EmbeddingManager {
     };
   }
   
-  // Search embeddings
+  // Search embeddings (legacy method)
   async search(query: string, options: {
     level?: 'field' | 'cycle' | 'session';
     sessionId?: string;
@@ -175,9 +181,38 @@ export class EmbeddingManager {
     return await searchEmbeddings(query, options);
   }
   
-  // Cascading search
+  // Cascading search (legacy method)
   async cascadingSearch(query: string, userIntent: string, k: number = 8): Promise<any[]> {
     return await cascadingSearch(query, userIntent, k);
+  }
+
+  // Enhanced search methods
+  async enhancedSearch(
+    query: string,
+    userIntent?: string,
+    options: SearchOptions = {}
+  ): Promise<EnhancedSearchResult[]> {
+    return await enhancedSearchEngine.search(query, userIntent, options);
+  }
+
+  async enhancedCascadingSearch(
+    query: string,
+    userIntent: string,
+    k: number = 8,
+    options: SearchOptions = {}
+  ): Promise<EnhancedSearchResult[]> {
+    return await enhancedSearchEngine.cascadingSearch(query, userIntent, k, options);
+  }
+
+  async getSearchSuggestions(
+    partialQuery: string,
+    limit: number = 5
+  ): Promise<string[]> {
+    return await enhancedSearchEngine.getSearchSuggestions(partialQuery, limit);
+  }
+
+  getSearchAnalytics() {
+    return enhancedSearchEngine.getSearchAnalytics();
   }
   
   // Create jobs for existing data
@@ -187,7 +222,7 @@ export class EmbeddingManager {
     jobsCreated: number;
   }> {
     console.log('Starting backfill of existing data for embeddings');
-    const result = createEmbeddingJobsForExistingData(limit);
+    const result = await createEmbeddingJobsForExistingData(limit);
     
     // Trigger immediate processing if we're running
     if (this.isProcessing) {

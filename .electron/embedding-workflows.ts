@@ -5,7 +5,7 @@ import {
   generateEmbedding, 
   generateSessionSummary, 
   storeEmbedding
-} from './embeddings.ts';
+} from './db.ts';
 import {
   markJobProcessing,
   updateJobStatus,
@@ -354,7 +354,7 @@ async function generateSummary(
   config?: RunnableConfig
 ): Promise<Partial<typeof SessionEmbedState.State>> {
   try {
-    console.log(`Generating summary for session job: ${state.job.id}:`);
+    console.log(`Generating summary for session job: ${state.job.id}:`, state.job.text);
 
     // state.job.text here is actually the stringified JSON of the session data
     

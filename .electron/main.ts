@@ -28,7 +28,7 @@ import { embeddingManager } from './embedding-manager.ts';
 import { 
   searchEmbeddings, 
   cascadingSearch
-} from './embeddings.ts';
+} from './db.ts';
 
 // NOTE: This is an early scaffold. Additional tray, global shortcuts, IPC, and
 // database logic will be added in subsequent phases.
@@ -210,8 +210,12 @@ app.whenReady().then(async () => {
     const settings = getSettings();
     if (settings.aiEnabled) {
       console.log('AI enabled - checking for existing data to process...');
-      setTimeout(() => {
-        embeddingManager.backfillExistingData(50);
+      setTimeout(async () => {
+        try {
+          await embeddingManager.backfillExistingData(50);
+        } catch (error) {
+          console.error('Startup backfill failed:', error);
+        }
       }, 5000); // Wait 5 seconds after app start
     }
     
@@ -435,6 +439,49 @@ ipcMain.handle('wc:embedding-cascading-search', async (_, query: string, userInt
   }
 });
 
+// Enhanced search methods
+ipcMain.handle('wc:enhanced-search', async (_, query: string, userIntent?: string, options = {}) => {
+  try {
+    return await embeddingManager.enhancedSearch(query, userIntent, options);
+  } catch (error) {
+    console.error('Enhanced search failed:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('wc:enhanced-cascading-search', async (_, query: string, userIntent: string, k = 8, options = {}) => {
+  try {
+    return await embeddingManager.enhancedCascadingSearch(query, userIntent, k, options);
+  } catch (error) {
+    console.error('Enhanced cascading search failed:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('wc:search-suggestions', async (_, partialQuery: string, limit = 5) => {
+  try {
+    return await embeddingManager.getSearchSuggestions(partialQuery, limit);
+  } catch (error) {
+    console.error('Search suggestions failed:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('wc:search-analytics', () => {
+  try {
+    return embeddingManager.getSearchAnalytics();
+  } catch (error) {
+    console.error('Search analytics failed:', error);
+    return {
+      totalSearches: 0,
+      recentSearches: 0,
+      avgResultsPerSearch: 0,
+      commonQueries: [],
+      searchTrends: []
+    };
+  }
+});
+
 ipcMain.handle('wc:embedding-backfill', async (_, limit = 100) => {
   try {
     console.log('Manual embedding backfill requested');
@@ -446,7 +493,7 @@ ipcMain.handle('wc:embedding-backfill', async (_, limit = 100) => {
 });
 
 // Handle settings changes that affect embeddings
-ipcMain.handle('wc:save-settings', (_e, patch: Partial<ReturnType<typeof getSettings>>) => {
+ipcMain.handle('wc:save-settings', async (_e, patch: Partial<ReturnType<typeof getSettings>>) => {
   const previousSettings = getSettings();
   saveSettings(patch);
 
@@ -458,8 +505,12 @@ ipcMain.handle('wc:save-settings', (_e, patch: Partial<ReturnType<typeof getSett
   // If AI was just enabled, trigger backfill
   if (patch.aiEnabled && !previousSettings.aiEnabled) {
     console.log('AI just enabled - triggering backfill of existing data');
-    setTimeout(() => {
-      embeddingManager.backfillExistingData(50);
+    setTimeout(async () => {
+      try {
+        await embeddingManager.backfillExistingData(50);
+      } catch (error) {
+        console.error('Backfill failed:', error);
+      }
     }, 1000);
   }
   
