@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, ArrowRight } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
@@ -32,6 +32,15 @@ export function SessionReviewScreen() {
   };
   
   if (!currentSession) return null;
+  
+  // auto-resize
+  useEffect(() => {
+    document.querySelectorAll<HTMLTextAreaElement>('textarea[data-auto-resize]')
+      .forEach(el => {
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+      });
+  }, [review]);
   
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4">
@@ -69,6 +78,7 @@ export function SessionReviewScreen() {
                 placeholder="List your key accomplishments and completed tasks..."
                 className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
                 rows={2}
+                data-auto-resize
               />
             </div>
             
@@ -82,6 +92,7 @@ export function SessionReviewScreen() {
                 placeholder="Was this more or less productive than usual? Why..."
                 className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
                 rows={2}
+                data-auto-resize
               />
             </div>
             
@@ -95,6 +106,7 @@ export function SessionReviewScreen() {
                 placeholder="Any areas where progress slowed or stopped..."
                 className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
                 rows={2}
+                data-auto-resize
               />
             </div>
             
@@ -108,6 +120,7 @@ export function SessionReviewScreen() {
                 placeholder="Identify what worked and how to do more of it..."
                 className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
                 rows={2}
+                data-auto-resize
               />
             </div>
             
@@ -121,6 +134,7 @@ export function SessionReviewScreen() {
                 placeholder="Broader insights, patterns, or wisdom from this session..."
                 className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
                 rows={2}
+                data-auto-resize
               />
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, Target, ChevronRight, ChevronDown } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
@@ -93,6 +93,15 @@ export function SessionIntentionsScreen() {
     el.style.height = `${el.scrollHeight}px`;
   };
   
+  // Resize all tagged textareas whenever intentions change programmatically
+  useEffect(() => {
+    document.querySelectorAll<HTMLTextAreaElement>('textarea[data-auto-resize]')
+      .forEach(el => {
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+      });
+  }, [intentions]);
+  
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4">
       <div className="max-w-md mx-auto">
@@ -126,6 +135,7 @@ export function SessionIntentionsScreen() {
                 </label>
                 <textarea
                   value={intentions.objective}
+                  data-auto-resize
                   onChange={(e) => setIntentions(prev => ({ ...prev, objective: e.target.value }))}
                   placeholder="Describe your main goal for this session..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
@@ -141,6 +151,7 @@ export function SessionIntentionsScreen() {
                 </label>
                 <textarea
                   value={intentions.importance}
+                  data-auto-resize
                   onChange={(e) => setIntentions(prev => ({ ...prev, importance: e.target.value }))}
                   placeholder="What makes this work meaningful and worth doing now..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
@@ -156,6 +167,7 @@ export function SessionIntentionsScreen() {
                 </label>
                 <textarea
                   value={intentions.definitionOfDone}
+                  data-auto-resize
                   onChange={(e) => setIntentions(prev => ({ ...prev, definitionOfDone: e.target.value }))}
                   placeholder="What will success look like? How will you measure completion..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
@@ -171,6 +183,7 @@ export function SessionIntentionsScreen() {
                 </label>
                 <textarea
                   value={intentions.hazards}
+                  data-auto-resize
                   onChange={(e) => setIntentions(prev => ({ ...prev, hazards: e.target.value }))}
                   placeholder="What might get in your way? How can you prepare for challenges..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
@@ -202,6 +215,7 @@ export function SessionIntentionsScreen() {
                 </label>
                 <textarea
                   value={intentions.miscNotes}
+                  data-auto-resize
                   onChange={(e) => setIntentions(prev => ({ ...prev, miscNotes: e.target.value }))}
                   placeholder="Any other thoughts, notes, or considerations..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"

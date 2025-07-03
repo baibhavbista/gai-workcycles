@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, Lightbulb, Target } from 'lucide-react';
 import { BackButton } from '../components/BackButton';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
@@ -35,6 +35,15 @@ export function PreCycleScreen() {
   
   const isValid = cycleData.goal.trim().length > 0 && cycleData.energy && cycleData.morale;
   const currentCycleNumber = (currentSession?.currentCycleIdx || 0) + 1;
+  
+  // Auto-resize programmatically updated textareas
+  useEffect(() => {
+    document.querySelectorAll<HTMLTextAreaElement>('textarea[data-auto-resize]')
+      .forEach(el => {
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+      });
+  }, [cycleData]);
   
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4">
@@ -73,6 +82,7 @@ export function PreCycleScreen() {
                   placeholder="Be specific about what you want to achieve in the next 30 minutes..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
                   rows={2}
+                  data-auto-resize
                 />
               </div>
               
@@ -86,6 +96,7 @@ export function PreCycleScreen() {
                   placeholder="What's your first step? How will you begin..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
                   rows={2}
+                  data-auto-resize
                 />
               </div>
               
@@ -99,6 +110,7 @@ export function PreCycleScreen() {
                   placeholder="What might distract you or slow you down in this cycle..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
                   rows={2}
+                  data-auto-resize
                 />
               </div>
             </div>

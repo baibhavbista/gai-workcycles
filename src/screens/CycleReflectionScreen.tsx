@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, Target, Coffee, Square } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
@@ -29,6 +29,15 @@ export function CycleReflectionScreen() {
   
   const currentCycleNumber = (currentCycle?.idx || 0) + 1;
   const isLastCycle = currentSession && currentCycleNumber >= currentSession.intentions.cyclesPlanned;
+  
+  // auto-resize
+  useEffect(() => {
+    document.querySelectorAll<HTMLTextAreaElement>('textarea[data-auto-resize]')
+      .forEach(el => {
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+      });
+  }, [reflection]);
   
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4">
@@ -121,6 +130,7 @@ export function CycleReflectionScreen() {
                   placeholder="Any insights, breakthroughs, or notable observations..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
                   rows={2}
+                  data-auto-resize
                 />
               </div>
               
@@ -134,6 +144,7 @@ export function CycleReflectionScreen() {
                   placeholder="What pulled your attention away from the task..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
                   rows={2}
+                  data-auto-resize
                 />
               </div>
               
@@ -147,6 +158,7 @@ export function CycleReflectionScreen() {
                   placeholder="What would help you be more effective next time..."
                   className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
                   rows={2}
+                  data-auto-resize
                 />
               </div>
             </div>
