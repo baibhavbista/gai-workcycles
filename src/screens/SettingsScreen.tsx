@@ -4,6 +4,8 @@ import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { Settings as SettingsIcon, Eye, EyeOff } from 'lucide-react';
 import { saveOpenAIKey, isEncryptionAvailable, getOpenAIKey } from '../electron-ipc';
 
+type SaveState = 'idle' | 'saving' | 'saved';
+
 export function SettingsScreen() {
   const { settings, updateSettings, goBack } = useWorkCyclesStore();
   const [local, setLocal] = useState(() => settings ?? {
@@ -20,7 +22,8 @@ export function SettingsScreen() {
   const [showKey, setShowKey] = useState(false);
   const [encAvailable, setEncAvailable] = useState(true);
   const [hotkeyError, setHotkeyError] = useState<string | null>(null);
-  const [savedToast, setSavedToast] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
 
   useEffect(() => {
     if (settings) setLocal(settings);
@@ -42,6 +45,11 @@ export function SettingsScreen() {
       .catch(() => {});
   }, []);
 
+  // Clear API key error when key changes
+  useEffect(() => {
+    setApiKeyError(null);
+  }, [apiKey]);
+
   const isValidAccelerator = (acc: string) => {
     if (!acc) return false;
     // Must have at least one '+' (modifier + key)
@@ -57,26 +65,64 @@ export function SettingsScreen() {
     return /^[A-Za-z0-9]$/.test(key);
   };
 
+  const isValidOpenAIKey = (key: string) => {
+    return key.trim().startsWith('sk-') && key.trim().length > 3;
+  };
+
   const handleSave = async () => {
+    // Reset errors
+    setHotkeyError(null);
+    setApiKeyError(null);
+
     // validate hotkey
     if (!isValidAccelerator(local.hotkey)) {
       setHotkeyError('Invalid hotkey format');
       return;
     }
 
-    await updateSettings(local);
-    if (local.aiEnabled && apiKey) {
-      await saveOpenAIKey(apiKey.trim());
-    } else if (!local.aiEnabled) {
-      await saveOpenAIKey(''); // clear stored key
+    // Validate OpenAI key if AI is enabled
+    if (local.aiEnabled) {
+      if (!apiKey) {
+        setApiKeyError('OpenAI API key is required when AI features are enabled');
+        return;
+      }
+      if (!isValidOpenAIKey(apiKey)) {
+        setApiKeyError('Invalid OpenAI API key format. Must start with "sk-"');
+        return;
+      }
     }
-    setApiKey('');
-    setHotkeyError(null);
-    setSavedToast(true);
-    setTimeout(() => {
-      setSavedToast(false);
-      goBack();
-    }, 1500);
+
+    setSaveState('saving');
+    
+    try {
+      await updateSettings(local);
+      if (local.aiEnabled && apiKey) {
+        await saveOpenAIKey(apiKey.trim());
+      } else if (!local.aiEnabled) {
+        await saveOpenAIKey(''); // clear stored key
+      }
+      setApiKey('');
+      setSaveState('saved');
+      
+      // Navigate back after showing "Saved"
+      setTimeout(() => {
+        goBack();
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      setSaveState('idle');
+    }
+  };
+
+  const getSaveButtonText = () => {
+    switch (saveState) {
+      case 'saving':
+        return 'Saving...';
+      case 'saved':
+        return 'Saved ✓';
+      default:
+        return 'Save Settings';
+    }
   };
 
   return (
@@ -96,7 +142,12 @@ export function SettingsScreen() {
             <input
               type="checkbox"
               checked={local.aiEnabled}
-              onChange={(e) => setLocal({ ...local, aiEnabled: e.target.checked })}
+              onChange={(e) => {
+                setLocal({ ...local, aiEnabled: e.target.checked });
+                if (!e.target.checked) {
+                  setApiKeyError(null);
+                }
+              }}
               className="w-5 h-5 text-[#482F60] border-gray-300 rounded focus:ring-[#482F60]"
             />
             <span className="text-sm text-gray-700">Enable AI features</span>
@@ -110,7 +161,9 @@ export function SettingsScreen() {
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="sk-..."
-                  className="w-full pr-10 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
+                  className={`w-full pr-10 p-3 border rounded-lg focus:ring-2 focus:ring-[#482F60] transition-colors text-sm ${
+                    apiKeyError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#482F60]'
+                  }`}
                 />
                 <button
                   type="button"
@@ -121,9 +174,13 @@ export function SettingsScreen() {
                   {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                {encAvailable ? 'Stored securely on your device.' : 'Stored locally in plain text (electron safeStorage API not available on your device)'}
-              </p>
+              {apiKeyError ? (
+                <p className="text-xs text-red-600 mt-1">{apiKeyError}</p>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">
+                  {encAvailable ? 'Stored securely on your device.' : 'Stored locally in plain text (electron safeStorage API not available on your device)'}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -227,17 +284,14 @@ export function SettingsScreen() {
         {/* Save button */}
         <button
           onClick={handleSave}
-          className="w-full py-3 bg-[#482F60] text-white rounded-xl hover:bg-[#3d2651] transition font-medium"
+          disabled={saveState !== 'idle'}
+          className={`w-full py-3 bg-[#482F60] text-white rounded-xl transition font-medium
+            ${saveState === 'idle' ? 'hover:bg-[#3d2651]' : ''}
+            ${saveState === 'saved' ? 'bg-green-600' : ''}
+            ${saveState === 'saving' ? 'opacity-80 cursor-wait' : ''}`}
         >
-          Save Settings
+          {getSaveButtonText()}
         </button>
-
-        {/* Saved toast */}
-        {savedToast && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg transition-opacity">
-            Saved ✓
-          </div>
-        )}
       </div>
     </div>
   );
