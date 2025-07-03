@@ -1,10 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { BackButton } from '../components/BackButton';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
-import { Settings as SettingsIcon, Eye, EyeOff } from 'lucide-react';
-import { saveOpenAIKey, isEncryptionAvailable, getOpenAIKey } from '../electron-ipc';
+import { Settings as SettingsIcon, Eye, EyeOff, Activity, Database, Clock, RefreshCw, AlertCircle, CheckCircle, Zap } from 'lucide-react';
+import { 
+  saveOpenAIKey, 
+  isEncryptionAvailable, 
+  getOpenAIKey, 
+  getEmbeddingQueueStatus,
+  getEmbeddingDbStats,
+  triggerEmbeddingBackfill,
+  clearEmbeddingCache
+} from '../electron-ipc';
 
 type SaveState = 'idle' | 'saving' | 'saved';
+
+interface EmbeddingStatus {
+  pending: number;
+  processing: number;
+  total: number;
+  statistics: {
+    pending: number;
+    processing: number;
+    done: number;
+    error: number;
+  };
+}
+
+interface DbStats {
+  totalEmbeddings: number;
+  fieldEmbeddings: number;
+  cycleEmbeddings: number;
+  sessionEmbeddings: number;
+  lastUpdate: string | null;
+  storageSize: number;
+  queueStatistics: {
+    pending: number;
+    processing: number;
+    done: number;
+    error: number;
+  };
+}
 
 export function SettingsScreen() {
   const { settings, updateSettings, goBack } = useWorkCyclesStore();
@@ -24,6 +59,15 @@ export function SettingsScreen() {
   const [hotkeyError, setHotkeyError] = useState<string | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
+  
+  // Embedding status states
+  const [embeddingStatus, setEmbeddingStatus] = useState<EmbeddingStatus | null>(null);
+  const [dbStats, setDbStats] = useState<DbStats | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [lastStatusUpdate, setLastStatusUpdate] = useState<Date | null>(null);
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [cacheLoading, setCacheLoading] = useState(false);
 
   useEffect(() => {
     if (settings) setLocal(settings);
@@ -44,6 +88,66 @@ export function SettingsScreen() {
       })
       .catch(() => {});
   }, []);
+
+  // Load embedding status when AI is enabled
+  useEffect(() => {
+    if (local.aiEnabled) {
+      loadEmbeddingStatus();
+      // Set up 30-second refresh interval
+      const interval = setInterval(loadEmbeddingStatus, 30000);
+      return () => clearInterval(interval);
+    } else {
+      setEmbeddingStatus(null);
+      setDbStats(null);
+    }
+  }, [local.aiEnabled]);
+
+  const loadEmbeddingStatus = async () => {
+    try {
+      setStatusLoading(true);
+      setStatusError(null);
+      
+      const [queueStatus, dbStatsData] = await Promise.all([
+        getEmbeddingQueueStatus(),
+        getEmbeddingDbStats()
+      ]);
+      
+      setEmbeddingStatus(queueStatus);
+      setDbStats(dbStatsData);
+      setLastStatusUpdate(new Date());
+    } catch (error) {
+      console.error('Failed to load embedding status:', error);
+      setStatusError('Failed to load embedding status');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleBackfill = async () => {
+    try {
+      setBackfillLoading(true);
+      await triggerEmbeddingBackfill(50);
+      // Refresh status after backfill
+      setTimeout(loadEmbeddingStatus, 2000);
+    } catch (error) {
+      console.error('Backfill failed:', error);
+    } finally {
+      setBackfillLoading(false);
+    }
+  };
+
+  const handleClearCache = async () => {
+    try {
+      setCacheLoading(true);
+      await clearEmbeddingCache();
+      // Refresh status after cache clear
+      setTimeout(loadEmbeddingStatus, 1000);
+    } catch (error) {
+      console.error('Cache clear failed:', error);
+    } finally {
+      setCacheLoading(false);
+    }
+  };
 
   // Clear API key error when key changes
   useEffect(() => {
@@ -125,6 +229,35 @@ export function SettingsScreen() {
     }
   };
 
+  const getStatusColor = (status: 'good' | 'warning' | 'error') => {
+    switch (status) {
+      case 'good': return 'text-green-600';
+      case 'warning': return 'text-yellow-600';
+      case 'error': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const getQueueStatus = (): { status: 'good' | 'warning' | 'error', text: string } => {
+    if (!embeddingStatus) return { status: 'error', text: 'Unknown' };
+    
+    const { pending, processing, statistics } = embeddingStatus;
+    
+    if (statistics.error > 0 && pending === 0 && processing === 0) {
+      return { status: 'error', text: `${statistics.error} errors` };
+    }
+    
+    if (processing > 0) {
+      return { status: 'warning', text: `Processing ${processing} jobs` };
+    }
+    
+    if (pending > 0) {
+      return { status: 'warning', text: `${pending} jobs pending` };
+    }
+    
+    return { status: 'good', text: 'Queue empty' };
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4">
       <div className="max-w-md mx-auto">
@@ -180,6 +313,103 @@ export function SettingsScreen() {
                 <p className="text-xs text-gray-500 mt-1">
                   {encAvailable ? 'Stored securely on your device.' : 'Stored locally in plain text (electron safeStorage API not available on your device)'}
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* Embedding Status Section */}
+          {local.aiEnabled && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-gray-900">Embedding System Status</h4>
+                <button
+                  onClick={loadEmbeddingStatus}
+                  disabled={statusLoading}
+                  className="p-1 text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${statusLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+
+              {statusError ? (
+                <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-red-600" />
+                  <span className="text-sm text-red-700">{statusError}</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Queue Status */}
+                  {embeddingStatus && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-700">Queue Status</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm ${getStatusColor(getQueueStatus().status)}`}>
+                          {getQueueStatus().text}
+                        </span>
+                        {getQueueStatus().status === 'good' && (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Database Stats */}
+                  {dbStats && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Database className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-700">Embeddings</span>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {dbStats.totalEmbeddings} stored
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Last Update */}
+                  {lastStatusUpdate && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-700">Last Update</span>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {lastStatusUpdate.toLocaleTimeString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Manual Controls */}
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={handleBackfill}
+                      disabled={backfillLoading}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-[#482F60] text-white rounded-lg hover:bg-[#3d2651] transition-colors disabled:opacity-50 text-sm"
+                    >
+                      {backfillLoading ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Zap className="w-4 h-4" />
+                      )}
+                      {backfillLoading ? 'Processing...' : 'Backfill'}
+                    </button>
+                    <button
+                      onClick={handleClearCache}
+                      disabled={cacheLoading}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 text-sm"
+                    >
+                      {cacheLoading ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4" />
+                      )}
+                      {cacheLoading ? 'Clearing...' : 'Clear Cache'}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}

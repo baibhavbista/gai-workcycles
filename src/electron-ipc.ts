@@ -137,4 +137,62 @@ export const updateCycleNote = (noteId: string, text: string) => {
   const api = getApi();
   if (!api) throw new Error('Electron API not available');
   return api.updateCycleNote(noteId, text) as Promise<{ ok: boolean }>;
+};
+
+// -------- Embedding Search --------
+
+export const embeddingSearch = (query: string, options?: any) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.embeddingSearch(query, options) as Promise<any[]>;
+};
+
+export const embeddingCascadingSearch = (query: string, userIntent: string, k = 8) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.embeddingCascadingSearch(query, userIntent, k) as Promise<any[]>;
+};
+
+export const listAllCycles = () => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.listAllCycles() as Promise<any[]>;
+};
+
+export const getSearchSuggestions = (query: string) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.getSearchSuggestions(query) as Promise<string[]>;
+};
+
+// -------- Embedding Status --------
+
+export const getEmbeddingStatus = () => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.getEmbeddingStatus() as Promise<any>;
+};
+
+export const getEmbeddingQueueStatus = () => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.getEmbeddingQueueStatus() as Promise<any>;
+};
+
+export const getEmbeddingDbStats = () => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.getEmbeddingDbStats() as Promise<any>;
+};
+
+export const triggerEmbeddingBackfill = (limit = 100) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.triggerEmbeddingBackfill(limit) as Promise<{ ok: boolean }>;
+};
+
+export const clearEmbeddingCache = () => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.clearEmbeddingCache() as Promise<{ ok: boolean }>;
 }; 

@@ -23,7 +23,7 @@ import {
   deleteCycleNote,
   updateCycleNote,
   CycleNotePayload,
-} from './db';
+} from './db.ts';
 import { embeddingManager } from './embedding-manager.ts';
 import { 
   searchEmbeddings, 
@@ -520,4 +520,122 @@ ipcMain.handle('wc:save-settings', async (_e, patch: Partial<ReturnType<typeof g
   }
   
   return { ok: true };
+});
+
+// -------- Additional Search & Status IPC --------
+
+ipcMain.handle('wc:list-all-cycles', () => {
+  try {
+    // Get all cycles from completed sessions
+    const sessions = listSessionsWithCycles();
+    const allCycles: any[] = [];
+    
+    for (const session of sessions) {
+      for (const cycle of session.cycles) {
+        // Only include completed cycles
+        if (cycle.status === 'hit' || cycle.status === 'miss') {
+          allCycles.push({
+            ...cycle,
+            sessionId: session.id,
+            sessionObjective: session.intentions?.objective,
+            sessionStartedAt: session.startedAt,
+          });
+        }
+      }
+    }
+    
+    // Sort by completion time (newest first)
+    return allCycles.sort((a, b) => {
+      const dateA = new Date(a.endedAt || a.startedAt || 0);
+      const dateB = new Date(b.endedAt || b.startedAt || 0);
+      
+      // TODO: figure out why this happens - why can cycles sometimes have these different kinds of dates
+      // Handle invalid dates
+      if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+      if (isNaN(dateA.getTime())) return 1;
+      if (isNaN(dateB.getTime())) return -1;
+      
+      return dateB.getTime() - dateA.getTime();
+    });
+  } catch (error) {
+    console.error('Failed to list all cycles:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('wc:get-search-suggestions', async (_, query: string) => {
+  try {
+    return await embeddingManager.getSearchSuggestions(query, 5);
+  } catch (error) {
+    console.error('Search suggestions failed:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('wc:embedding-queue-status', () => {
+  try {
+    // Get queue status from the embedding manager's status method
+    const status = embeddingManager.getStatus();
+    return {
+      ...status.queueStatus,
+      statistics: status.statistics
+    };
+  } catch (error) {
+    console.error('Failed to get queue status:', error);
+    return {
+      pending: 0,
+      processing: 0,
+      total: 0,
+      statistics: { pending: 0, processing: 0, done: 0, error: 0 }
+    };
+  }
+});
+
+ipcMain.handle('wc:embedding-db-stats', () => {
+  try {
+    // Return basic stats - could be enhanced with more detailed stats later
+    const status = embeddingManager.getStatus();
+    return {
+      totalEmbeddings: status.statistics.done,
+      fieldEmbeddings: 0, // Would need to query database for breakdown
+      cycleEmbeddings: 0,
+      sessionEmbeddings: 0,
+      lastUpdate: new Date(),
+      storageSize: 0, // Would need to query LanceDB for size
+      queueStatistics: status.statistics
+    };
+  } catch (error) {
+    console.error('Failed to get database stats:', error);
+    return {
+      totalEmbeddings: 0,
+      fieldEmbeddings: 0,
+      cycleEmbeddings: 0,
+      sessionEmbeddings: 0,
+      lastUpdate: null,
+      storageSize: 0,
+      queueStatistics: { pending: 0, processing: 0, done: 0, error: 0 }
+    };
+  }
+});
+
+ipcMain.handle('wc:trigger-embedding-backfill', async (_, limit = 100) => {
+  try {
+    console.log('Manual embedding backfill requested');
+    return await embeddingManager.backfillExistingData(limit);
+  } catch (error) {
+    console.error('Embedding backfill failed:', error);
+    return { sessionsProcessed: 0, cyclesProcessed: 0, jobsCreated: 0 };
+  }
+});
+
+ipcMain.handle('wc:clear-embedding-cache', () => {
+  try {
+    // This would clear any in-memory caches
+    // For now, just reset the client which will reinitialize connections
+    embeddingManager.resetClient();
+    return { ok: true };
+  } catch (error) {
+    console.error('Failed to clear embedding cache:', error);
+    return { ok: false };
+  }
 });
