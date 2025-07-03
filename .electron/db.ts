@@ -79,7 +79,7 @@ const insertSessionStmt = db.prepare(`
 
 const insertCycleStmt = db.prepare(`
   INSERT INTO cycles (
-    id, session_id, idx, plan_goal, plan_first_step, plan_hazards, plan_energy, plan_morale, started_at
+    id, session_id, idx, plan_goal, plan_first_step, plan_hazards_cycle, plan_energy, plan_morale, started_at
   ) VALUES (
     @id, @session_id, @idx, @goal, @first_step, @hazards, @energy, @morale, datetime('now')
   )
@@ -303,7 +303,7 @@ export function getSessionById(sessionId: string) {
     ...row,
     goal: row.plan_goal,
     firstStep: row.plan_first_step,
-    hazards: row.plan_hazards,
+    hazards: row.plan_hazards_cycle,
     energy: energyFromInt[row.plan_energy] as any,
     morale: energyFromInt[row.plan_morale] as any,
     status: row.review_status !== null ? (statusFromInt[row.review_status] as any) : undefined,
@@ -321,7 +321,7 @@ export function listSessionsWithCycles() {
       ...c,
       goal: c.plan_goal,
       firstStep: c.plan_first_step,
-      hazards: c.plan_hazards,
+      hazards: c.plan_hazards_cycle,
       energy: energyFromInt[c.plan_energy] as any,
       morale: energyFromInt[c.plan_morale] as any,
       status: c.review_status !== null ? (statusFromInt[c.review_status] as any) : undefined,

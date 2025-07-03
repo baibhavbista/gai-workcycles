@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS cycles (
   ended_at      DATETIME,
   plan_goal          TEXT,
   plan_first_step    TEXT,
-  plan_hazards       TEXT,
+  plan_hazards_cycle TEXT,
   plan_energy        INTEGER CHECK(plan_energy IN (0,1,2)),   -- 0=Low 1=Med 2=High
   plan_morale        INTEGER CHECK(plan_morale IN (0,1,2)),
   review_status        INTEGER CHECK(review_status IN (0,1,2)),   -- 0=No 1=Half 2=Yes
