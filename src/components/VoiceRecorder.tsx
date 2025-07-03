@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { getOpenAIKey } from '../electron-ipc';
-import { QuestionSpec, autoFillForm } from '../client-side-ai';
+import { QuestionSpec, autoFillForm, transcribeAudio } from '../client-side-ai';
 
 type RecordingState = 'idle' | 'recording' | 'processing' | 'complete' | 'error';
 
@@ -54,43 +54,6 @@ export function VoiceRecorder({ formSchema, onComplete, className = '' }: VoiceR
     };
   }, []);
 
-  const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
-    try {
-      const apiKey = await getOpenAIKey();
-      if (!apiKey) {
-        throw new Error('OpenAI API key not found. Please add it in settings.');
-      }
-
-      // Convert audio blob to File object
-      const file = new File([audioBlob], 'audio.webm', { type: 'audio/webm' });
-      
-      // Create form data
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('model', 'whisper-1');
-      
-      // Send to OpenAI API
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to transcribe audio');
-      }
-      
-      const data = await response.json();
-      return data.text;
-    } catch (error) {
-      console.error('Transcription error:', error);
-      throw error;
-    }
-  };
-
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -107,15 +70,15 @@ export function VoiceRecorder({ formSchema, onComplete, className = '' }: VoiceR
           setState('processing');
           const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
 
-          const transcript = await transcribeAudio(audioBlob);
+          const apiKey = await getOpenAIKey();
+          if (!apiKey) throw new Error('OpenAI API key missing');
+          const transcript = await transcribeAudio(audioBlob, apiKey);
 
           let filled: Record<string, string> | undefined;
 
           // 2. If a form schema is provided, call GPT to fill it
           if (formSchema && formSchema.length) {
             try {
-              const apiKey = await getOpenAIKey();
-              if (!apiKey) throw new Error('OpenAI API key missing');
               filled = await autoFillForm(transcript, formSchema, apiKey);
             } catch (err) {
               console.error('Auto-fill error:', err);
