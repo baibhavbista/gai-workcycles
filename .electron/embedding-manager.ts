@@ -8,12 +8,15 @@ import {
   resetOpenAIClient
 } from './embeddings.js';
 import { 
-  processBatch, 
-  retryFailedEmbeddings, 
   checkNetworkConnectivity,
-  globalRateLimiter,
-  type BatchItem 
+  globalRateLimiter
 } from './batch-processor.js';
+import {
+  executeFieldEmbeddingWorkflow,
+  executeCycleEmbeddingWorkflow,
+  executeSessionEmbeddingWorkflow,
+  type WorkflowResult
+} from './embedding-workflows.js';
 import { 
   performPeriodicCleanup,
   createEmbeddingJobsForExistingData 
@@ -58,7 +61,7 @@ export class EmbeddingManager {
     console.log('Embedding background processing stopped');
   }
   
-  // Process pending embedding jobs
+  // Process pending embedding jobs using LangGraph workflows
   async processQueue(): Promise<void> {
     try {
       // Check network connectivity first
@@ -77,42 +80,73 @@ export class EmbeddingManager {
       
       console.log(`Processing ${pendingJobs.length} embedding jobs`);
       
-      // Convert to batch items
-      const batchItems: BatchItem[] = pendingJobs.map(job => ({
-        id: job.id,
-        text: job.text,
-        level: job.level,
-        sessionId: job.sessionId,
-        metadata: {
-          cycleId: job.cycleId,
-          column: job.columnName,
-          fieldLabel: job.fieldLabel
-        }
-      }));
+      // Group jobs by level for appropriate workflow execution
+      const fieldJobs = pendingJobs.filter(job => job.level === 'field');
+      const cycleJobs = pendingJobs.filter(job => job.level === 'cycle');
+      const sessionJobs = pendingJobs.filter(job => job.level === 'session');
       
-      // Apply rate limiting
-      await globalRateLimiter.waitForSlot();
+      let totalProcessed = 0;
+      let totalErrors = 0;
       
-      // Process the batch
-      const result = await processBatch(batchItems);
-      
-      if (result.success) {
-        console.log(`Successfully processed ${result.processed} embedding jobs`);
-      } else {
-        console.log(`Processed ${result.processed} jobs with ${result.errors.length} errors`);
+      // Process field-level jobs in batch
+      if (fieldJobs.length > 0) {
+        console.log(`Processing ${fieldJobs.length} field-level embedding jobs`);
+        const fieldResult = await executeFieldEmbeddingWorkflow(fieldJobs);
+        totalProcessed += fieldResult.processed;
+        totalErrors += fieldResult.errors;
         
-        // Retry failed jobs (up to 3 times)
-        if (result.errors.length > 0) {
-          const failedItems = batchItems.filter(item => 
-            result.errors.some(error => error.id === item.id)
-          );
-          
-          if (failedItems.length > 0) {
-            console.log(`Retrying ${failedItems.length} failed embedding jobs`);
-            await retryFailedEmbeddings(failedItems);
+        if (fieldResult.success) {
+          console.log(`Field workflow completed successfully: ${fieldResult.processed} jobs`);
+        } else {
+          console.log(`Field workflow completed with errors: ${fieldResult.errors} failed`);
+        }
+      }
+      
+      // Process cycle-level jobs individually
+      if (cycleJobs.length > 0) {
+        console.log(`Processing ${cycleJobs.length} cycle-level embedding jobs`);
+        
+        for (const cycleJob of cycleJobs) {
+          try {
+            const cycleResult = await executeCycleEmbeddingWorkflow(cycleJob);
+            totalProcessed += cycleResult.processed;
+            totalErrors += cycleResult.errors;
+            
+            if (cycleResult.success) {
+              console.log(`Cycle workflow completed: ${cycleJob.id}`);
+            } else {
+              console.log(`Cycle workflow failed: ${cycleJob.id}`);
+            }
+          } catch (error) {
+            console.error(`Error processing cycle job ${cycleJob.id}:`, error);
+            totalErrors++;
           }
         }
       }
+      
+      // Process session-level jobs individually
+      if (sessionJobs.length > 0) {
+        console.log(`Processing ${sessionJobs.length} session-level embedding jobs`);
+        
+        for (const sessionJob of sessionJobs) {
+          try {
+            const sessionResult = await executeSessionEmbeddingWorkflow(sessionJob);
+            totalProcessed += sessionResult.processed;
+            totalErrors += sessionResult.errors;
+            
+            if (sessionResult.success) {
+              console.log(`Session workflow completed: ${sessionJob.id}`);
+            } else {
+              console.log(`Session workflow failed: ${sessionJob.id}`);
+            }
+          } catch (error) {
+            console.error(`Error processing session job ${sessionJob.id}:`, error);
+            totalErrors++;
+          }
+        }
+      }
+      
+      console.log(`Embedding queue processing completed: ${totalProcessed} successful, ${totalErrors} errors`);
       
     } catch (error) {
       console.error('Error processing embedding queue:', error);

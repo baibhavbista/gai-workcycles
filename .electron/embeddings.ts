@@ -76,7 +76,7 @@ async function getEmbeddingTable() {
 }
 
 // Embedding job queue management
-interface EmbedJob {
+export interface EmbedJob {
   id: string;
   level: 'field' | 'cycle' | 'session';
   sessionId: string;
