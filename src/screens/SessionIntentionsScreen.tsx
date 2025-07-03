@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight, Target, ChevronRight, ChevronDown } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
+import { LabelledTextArea } from '../components/LabelledTextArea';
 import type { SessionIntentions } from '../types';
 import type { QuestionSpec } from '../client-side-ai';
 import { BackButton } from '../components/BackButton';
@@ -29,8 +30,14 @@ export function SessionIntentionsScreen() {
     { key: 'definitionOfDone', question: 'How will I know this is complete?' },
     { key: 'hazards',          question: 'Any risks / hazards? (Potential distractions, procrastination, etc.)' },
     { key: 'miscNotes',        question: 'Anything else noteworthy?'},
-    { key: 'concrete',         question: 'Is this concrete or measurable (rather than subjective / ambiguous)?', type: 'boolean' },
+    { key: 'concrete',         question: 'Is this concrete or measurable? (rather than subjective / ambiguous)', type: 'boolean' },
   ];
+
+  // map from key->question
+  const keyToSpec = formSchema.reduce((acc, spec) => {
+    acc[spec.key] = spec;
+    return acc;
+  }, {} as Record<string, QuestionSpec>);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,21 +94,6 @@ export function SessionIntentionsScreen() {
     return Math.round((hits / session.cycles.length) * 100);
   };
   
-  const autoResize = (e: React.FormEvent<HTMLTextAreaElement>) => {
-    const el = e.currentTarget;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-  };
-  
-  // Resize all tagged textareas whenever intentions change programmatically
-  useEffect(() => {
-    document.querySelectorAll<HTMLTextAreaElement>('textarea[data-auto-resize]')
-      .forEach(el => {
-        el.style.height = 'auto';
-        el.style.height = `${el.scrollHeight}px`;
-      });
-  }, [intentions]);
-  
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4">
       <div className="max-w-md mx-auto">
@@ -129,69 +121,33 @@ export function SessionIntentionsScreen() {
             <h3 className="font-semibold text-gray-900 mb-3 text-lg">Set Your Intentions</h3>
             
             <div className="space-y-4">
-              <div>
-                <label className="block font-medium text-gray-900 mb-1 text-sm">
-                  What am I trying to accomplish?
-                </label>
-                <textarea
-                  value={intentions.objective}
-                  data-auto-resize
-                  onChange={(e) => setIntentions(prev => ({ ...prev, objective: e.target.value }))}
-                  placeholder="Describe your main goal for this session..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  onInput={autoResize}
-                  style={{overflow:'hidden'}}
-                />
-              </div>
+              <LabelledTextArea
+                label="What am I trying to accomplish?"
+                value={intentions.objective}
+                onChange={(e) => setIntentions(prev => ({ ...prev, objective: e.target.value }))}
+                placeholder="Describe your main goal for this session..."
+              />
               
-              <div>
-                <label className="block font-medium text-gray-900 mb-1 text-sm">
-                  Why is this important and valuable?
-                </label>
-                <textarea
-                  value={intentions.importance}
-                  data-auto-resize
-                  onChange={(e) => setIntentions(prev => ({ ...prev, importance: e.target.value }))}
-                  placeholder="What makes this work meaningful and worth doing now..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  onInput={autoResize}
-                  style={{overflow:'hidden'}}
-                />
-              </div>
+              <LabelledTextArea
+                label="Why is this important and valuable?"
+                value={intentions.importance}
+                onChange={(e) => setIntentions(prev => ({ ...prev, importance: e.target.value }))}
+                placeholder="What makes this work meaningful and worth doing now..."
+              />
               
-              <div>
-                <label className="block font-medium text-gray-900 mb-1 text-sm">
-                  How will I know this is complete?
-                </label>
-                <textarea
-                  value={intentions.definitionOfDone}
-                  data-auto-resize
-                  onChange={(e) => setIntentions(prev => ({ ...prev, definitionOfDone: e.target.value }))}
-                  placeholder="What will success look like? How will you measure completion..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  onInput={autoResize}
-                  style={{overflow:'hidden'}}
-                />
-              </div>
+              <LabelledTextArea
+                label="How will I know this is complete?"
+                value={intentions.definitionOfDone}
+                onChange={(e) => setIntentions(prev => ({ ...prev, definitionOfDone: e.target.value }))}
+                placeholder="What will success look like? How will you measure completion..."
+              />
               
-              <div>
-                <label className="block font-medium text-gray-900 mb-1 text-sm">
-                  Any risks / hazards? Potential distractions, procrastination, etc.
-                </label>
-                <textarea
-                  value={intentions.hazards}
-                  data-auto-resize
-                  onChange={(e) => setIntentions(prev => ({ ...prev, hazards: e.target.value }))}
-                  placeholder="What might get in your way? How can you prepare for challenges..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  onInput={autoResize}
-                  style={{overflow:'hidden'}}
-                />
-              </div>
+              <LabelledTextArea
+                label="Any risks / hazards? Potential distractions, procrastination, etc."
+                value={intentions.hazards}
+                onChange={(e) => setIntentions(prev => ({ ...prev, hazards: e.target.value }))}
+                placeholder="What might get in your way? How can you prepare for challenges..."
+              />
               
               <div className="flex items-center gap-2">
                 <input
@@ -203,27 +159,18 @@ export function SessionIntentionsScreen() {
                 />
                 <label htmlFor="concrete" className="text-gray-700 text-sm">
                   <span className="font-medium">Is this concrete / measurable or subjective / ambiguous?</span>
-                  <div className="text-xs text-gray-500">
+                  {/* <div className="text-xs text-gray-500">
                     If not, maybe update above to have clear, measurable outcomes
-                  </div>
+                  </div> */}
                 </label>
               </div>
 
-              <div>
-                <label className="block font-medium text-gray-900 mb-1 text-sm">
-                  Anything else noteworthy?
-                </label>
-                <textarea
-                  value={intentions.miscNotes}
-                  data-auto-resize
-                  onChange={(e) => setIntentions(prev => ({ ...prev, miscNotes: e.target.value }))}
-                  placeholder="Any other thoughts, notes, or considerations..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  onInput={autoResize}
-                  style={{overflow:'hidden'}}
-                />
-              </div>
+              <LabelledTextArea
+                label="Anything else noteworthy?"
+                value={intentions.miscNotes}
+                onChange={(e) => setIntentions(prev => ({ ...prev, miscNotes: e.target.value }))}
+                placeholder="Any other thoughts, notes, or considerations..."
+              />
             </div>
           </div>
           

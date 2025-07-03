@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CheckCircle, ArrowRight } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import { BackButton } from '../components/BackButton';
 import { isElectron, saveSessionReview } from '../electron-ipc';
+import { LabelledTextArea } from '../components/LabelledTextArea';
 
 export function SessionReviewScreen() {
   const { currentSession, completeSession } = useWorkCyclesStore();
@@ -33,15 +34,6 @@ export function SessionReviewScreen() {
   
   if (!currentSession) return null;
   
-  // auto-resize
-  useEffect(() => {
-    document.querySelectorAll<HTMLTextAreaElement>('textarea[data-auto-resize]')
-      .forEach(el => {
-        el.style.height = 'auto';
-        el.style.height = `${el.scrollHeight}px`;
-      });
-  }, [review]);
-  
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4">
       <div className="max-w-md mx-auto">
@@ -68,75 +60,45 @@ export function SessionReviewScreen() {
           </p>
           
           <div className="space-y-4">
-            <div>
-              <label className="block font-medium text-gray-900 mb-1 text-sm">
-                What did I get done in this session?
-              </label>
-              <textarea
-                value={review.accomplishments}
-                onChange={(e) => setReview(prev => ({ ...prev, accomplishments: e.target.value }))}
-                placeholder="List your key accomplishments and completed tasks..."
-                className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
-                rows={2}
-                data-auto-resize
-              />
-            </div>
+            <LabelledTextArea
+              label="What did I get done in this session?"
+              value={review.accomplishments}
+              onChange={(e) => setReview(prev => ({ ...prev, accomplishments: e.target.value }))}
+              placeholder="List your key accomplishments and completed tasks..."
+              textareaClassName="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
+            />
             
-            <div>
-              <label className="block font-medium text-gray-900 mb-1 text-sm">
-                How did this compare to my normal work output?
-              </label>
-              <textarea
-                value={review.comparison}
-                onChange={(e) => setReview(prev => ({ ...prev, comparison: e.target.value }))}
-                placeholder="Was this more or less productive than usual? Why..."
-                className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
-                rows={2}
-                data-auto-resize
-              />
-            </div>
+            <LabelledTextArea
+              label="How did this compare to my normal work output?"
+              value={review.comparison}
+              onChange={(e) => setReview(prev => ({ ...prev, comparison: e.target.value }))}
+              placeholder="Was this more or less productive than usual? Why..."
+              textareaClassName="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
+            />
             
-            <div>
-              <label className="block font-medium text-gray-900 mb-1 text-sm">
-                Did I get bogged down? Where?
-              </label>
-              <textarea
-                value={review.obstacles}
-                onChange={(e) => setReview(prev => ({ ...prev, obstacles: e.target.value }))}
-                placeholder="Any areas where progress slowed or stopped..."
-                className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
-                rows={2}
-                data-auto-resize
-              />
-            </div>
+            <LabelledTextArea
+              label="Did I get bogged down? Where?"
+              value={review.obstacles}
+              onChange={(e) => setReview(prev => ({ ...prev, obstacles: e.target.value }))}
+              placeholder="Any areas where progress slowed or stopped..."
+              textareaClassName="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
+            />
             
-            <div>
-              <label className="block font-medium text-gray-900 mb-1 text-sm">
-                What went well? How can I replicate this in the future?
-              </label>
-              <textarea
-                value={review.successes}
-                onChange={(e) => setReview(prev => ({ ...prev, successes: e.target.value }))}
-                placeholder="Identify what worked and how to do more of it..."
-                className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
-                rows={2}
-                data-auto-resize
-              />
-            </div>
+            <LabelledTextArea
+              label="What went well? How can I replicate this in the future?"
+              value={review.successes}
+              onChange={(e) => setReview(prev => ({ ...prev, successes: e.target.value }))}
+              placeholder="Identify what worked and how to do more of it..."
+              textareaClassName="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
+            />
             
-            <div>
-              <label className="block font-medium text-gray-900 mb-1 text-sm">
-                Any other takeaways? Lessons to share with others?
-              </label>
-              <textarea
-                value={review.takeaways}
-                onChange={(e) => setReview(prev => ({ ...prev, takeaways: e.target.value }))}
-                placeholder="Broader insights, patterns, or wisdom from this session..."
-                className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
-                rows={2}
-                data-auto-resize
-              />
-            </div>
+            <LabelledTextArea
+              label="Any other takeaways? Lessons to share with others?"
+              value={review.takeaways}
+              onChange={(e) => setReview(prev => ({ ...prev, takeaways: e.target.value }))}
+              placeholder="Broader insights, patterns, or wisdom from this session..."
+              textareaClassName="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
+            />
           </div>
         </div>
         

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ArrowRight, Lightbulb, Target } from 'lucide-react';
 import { BackButton } from '../components/BackButton';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
+import { LabelledTextArea } from '../components/LabelledTextArea';
 import type { CycleData, EnergyLevel, MoraleLevel } from '../types';
 
 export function PreCycleScreen() {
@@ -36,15 +37,6 @@ export function PreCycleScreen() {
   const isValid = cycleData.goal.trim().length > 0 && cycleData.energy && cycleData.morale;
   const currentCycleNumber = (currentSession?.currentCycleIdx || 0) + 1;
   
-  // Auto-resize programmatically updated textareas
-  useEffect(() => {
-    document.querySelectorAll<HTMLTextAreaElement>('textarea[data-auto-resize]')
-      .forEach(el => {
-        el.style.height = 'auto';
-        el.style.height = `${el.scrollHeight}px`;
-      });
-  }, [cycleData]);
-  
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4">
       <div className="max-w-md mx-auto">
@@ -72,47 +64,27 @@ export function PreCycleScreen() {
             </p>
             
             <div className="space-y-4">
-              <div>
-                <label className="block font-medium text-gray-900 mb-2">
-                  What am I trying to accomplish this cycle? <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={cycleData.goal}
-                  onChange={(e) => setCycleData(prev => ({ ...prev, goal: e.target.value }))}
-                  placeholder="Be specific about what you want to achieve in the next 30 minutes..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  data-auto-resize
-                />
-              </div>
+              <LabelledTextArea
+                label="What am I trying to accomplish this cycle?"
+                value={cycleData.goal}
+                onChange={(e) => setCycleData(prev => ({ ...prev, goal: e.target.value }))}
+                placeholder="Be specific about what you want to achieve in the next 30 minutes..."
+                required
+              />
               
-              <div>
-                <label className="block font-medium text-gray-900 mb-2">
-                  How will I get started?
-                </label>
-                <textarea
-                  value={cycleData.firstStep}
-                  onChange={(e) => setCycleData(prev => ({ ...prev, firstStep: e.target.value }))}
-                  placeholder="What's your first step? How will you begin..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  data-auto-resize
-                />
-              </div>
+              <LabelledTextArea
+                label="How will I get started?"
+                value={cycleData.firstStep}
+                onChange={(e) => setCycleData(prev => ({ ...prev, firstStep: e.target.value }))}
+                placeholder="What's your first step? How will you begin..."
+              />
               
-              <div>
-                <label className="block font-medium text-gray-900 mb-2">
-                  Any hazards present?
-                </label>
-                <textarea
-                  value={cycleData.hazards}
-                  onChange={(e) => setCycleData(prev => ({ ...prev, hazards: e.target.value }))}
-                  placeholder="What might distract you or slow you down in this cycle..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  data-auto-resize
-                />
-              </div>
+              <LabelledTextArea
+                label="Any hazards present?"
+                value={cycleData.hazards}
+                onChange={(e) => setCycleData(prev => ({ ...prev, hazards: e.target.value }))}
+                placeholder="What might distract you or slow you down in this cycle..."
+              />
             </div>
           </div>
           

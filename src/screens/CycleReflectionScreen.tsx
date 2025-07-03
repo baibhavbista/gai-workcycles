@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ArrowRight, Target, Coffee, Square } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
+import { LabelledTextArea } from '../components/LabelledTextArea';
 import type { CycleStatus } from '../types';
 import { BackButton } from '../components/BackButton';
 
@@ -29,15 +30,6 @@ export function CycleReflectionScreen() {
   
   const currentCycleNumber = (currentCycle?.idx || 0) + 1;
   const isLastCycle = currentSession && currentCycleNumber >= currentSession.intentions.cyclesPlanned;
-  
-  // auto-resize
-  useEffect(() => {
-    document.querySelectorAll<HTMLTextAreaElement>('textarea[data-auto-resize]')
-      .forEach(el => {
-        el.style.height = 'auto';
-        el.style.height = `${el.scrollHeight}px`;
-      });
-  }, [reflection]);
   
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4">
@@ -120,47 +112,26 @@ export function CycleReflectionScreen() {
                 </div>
               </div>
               
-              <div>
-                <label className="block font-medium text-gray-900 mb-2">
-                  Anything noteworthy?
-                </label>
-                <textarea
-                  value={reflection.noteworthy}
-                  onChange={(e) => setReflection(prev => ({ ...prev, noteworthy: e.target.value }))}
-                  placeholder="Any insights, breakthroughs, or notable observations..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  data-auto-resize
-                />
-              </div>
+              <LabelledTextArea
+                label="Anything noteworthy?"
+                value={reflection.noteworthy}
+                onChange={(e) => setReflection(prev => ({ ...prev, noteworthy: e.target.value }))}
+                placeholder="Any insights, breakthroughs, or notable observations..."
+              />
               
-              <div>
-                <label className="block font-medium text-gray-900 mb-2">
-                  Any distractions?
-                </label>
-                <textarea
-                  value={reflection.distractions}
-                  onChange={(e) => setReflection(prev => ({ ...prev, distractions: e.target.value }))}
-                  placeholder="What pulled your attention away from the task..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  data-auto-resize
-                />
-              </div>
+              <LabelledTextArea
+                label="Any distractions?"
+                value={reflection.distractions}
+                onChange={(e) => setReflection(prev => ({ ...prev, distractions: e.target.value }))}
+                placeholder="What pulled your attention away from the task..."
+              />
               
-              <div>
-                <label className="block font-medium text-gray-900 mb-2">
-                  Things to improve for next cycle?
-                </label>
-                <textarea
-                  value={reflection.improvement}
-                  onChange={(e) => setReflection(prev => ({ ...prev, improvement: e.target.value }))}
-                  placeholder="What would help you be more effective next time..."
-                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
-                  rows={2}
-                  data-auto-resize
-                />
-              </div>
+              <LabelledTextArea
+                label="Things to improve for next cycle?"
+                value={reflection.improvement}
+                onChange={(e) => setReflection(prev => ({ ...prev, improvement: e.target.value }))}
+                placeholder="What would help you be more effective next time..."
+              />
             </div>
           </div>
           
