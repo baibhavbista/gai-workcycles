@@ -191,7 +191,10 @@ function registerGlobalHotkey(accelerator: string) {
 app.whenReady().then(async () => {
   await setupVectorTable();
   createWindow();
-  createTray();
+  
+  // disabling tray for MVP
+  //   known issues: icon is weird; maybe should enable only on macos; keeps the timer going even after cycle closed/back
+  // createTray();
 
   // Load user settings to register hotkey
   const settings = getSettings();
