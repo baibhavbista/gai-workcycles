@@ -1,26 +1,26 @@
 // Embedding Manager - Main interface for embedding system management
 import { 
-  getJobQueueStatus, 
-  getPendingEmbedJobs, 
-  getJobStatistics,
   searchEmbeddings,
   cascadingSearch,
   resetOpenAIClient
-} from './embeddings.js';
+} from './embeddings.ts';
+import {
+  getJobQueueStatus, 
+  getPendingEmbedJobs, 
+  getJobStatistics,
+  performPeriodicCleanup,
+  createEmbeddingJobsForExistingData 
+} from './db.ts';
 import { 
   checkNetworkConnectivity,
   globalRateLimiter
-} from './batch-processor.js';
+} from './batch-processor.ts';
 import {
   executeFieldEmbeddingWorkflow,
   executeCycleEmbeddingWorkflow,
   executeSessionEmbeddingWorkflow,
   type WorkflowResult
-} from './embedding-workflows.js';
-import { 
-  performPeriodicCleanup,
-  createEmbeddingJobsForExistingData 
-} from './db.js';
+} from './embedding-workflows.ts';
 
 // Manager class to coordinate all embedding operations
 export class EmbeddingManager {

@@ -1,4 +1,5 @@
-import { generateEmbedding, generateSessionSummary, storeEmbedding, markJobProcessing, updateJobStatus } from './embeddings.js';
+import { generateEmbedding, generateSessionSummary, storeEmbedding } from './embeddings.ts';
+import { markJobProcessing, updateJobStatus } from './db.ts';
 
 // Batch size for OpenAI API calls (as per plan)
 const BATCH_SIZE = 96;
@@ -169,18 +170,20 @@ export async function retryFailedEmbeddings(
 // Check network connectivity
 export async function checkNetworkConnectivity(): Promise<boolean> {
   try {
-    // Try to reach OpenAI API with timeout
+    // Simple connectivity check using a public endpoint that doesn't require auth
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     
-    const response = await fetch('https://api.openai.com/v1/models', {
+    // Use Google's public DNS-over-HTTPS endpoint for a simple connectivity check
+    const response = await fetch('https://dns.google/resolve?name=google.com&type=A', {
       method: 'HEAD',
       signal: controller.signal
     });
     
     clearTimeout(timeoutId);
     return response.ok;
-  } catch {
+  } catch (error) {
+    console.log('Network connectivity check failed:', error);
     return false;
   }
 }

@@ -24,14 +24,11 @@ import {
   updateCycleNote,
   CycleNotePayload,
 } from './db';
-import { embeddingManager } from './embedding-manager.js';
+import { embeddingManager } from './embedding-manager.ts';
 import { 
   searchEmbeddings, 
-  cascadingSearch, 
-  getJobQueueStatus,
-  getJobStatistics
-} from './embeddings.js';
-import { createEmbeddingJobsForExistingData } from './db.js';
+  cascadingSearch
+} from './embeddings.ts';
 
 // NOTE: This is an early scaffold. Additional tray, global shortcuts, IPC, and
 // database logic will be added in subsequent phases.

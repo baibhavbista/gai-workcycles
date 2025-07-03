@@ -4,12 +4,14 @@ import { RunnableConfig } from '@langchain/core/runnables';
 import { 
   generateEmbedding, 
   generateSessionSummary, 
-  storeEmbedding,
+  storeEmbedding
+} from './embeddings.ts';
+import {
   markJobProcessing,
   updateJobStatus,
   EmbedJob
-} from './embeddings.js';
-import { globalRateLimiter } from './batch-processor.js';
+} from './db.ts';
+import { globalRateLimiter } from './batch-processor.ts';
 
 // ===============================
 // State Definitions
@@ -352,7 +354,9 @@ async function generateSummary(
   config?: RunnableConfig
 ): Promise<Partial<typeof SessionEmbedState.State>> {
   try {
-    console.log(`Generating summary for session job: ${state.job.id}`);
+    console.log(`Generating summary for session job: ${state.job.id}:`);
+
+    // state.job.text here is actually the stringified JSON of the session data
     
     // Mark job as processing
     markJobProcessing(state.job.id);
@@ -392,6 +396,7 @@ async function generateSessionEmbedding(
     await globalRateLimiter.waitForSlot();
     
     // Generate embedding from the summary
+    console.log('Generating session embedding from summary:', state.summary);
     const embedding = await generateEmbedding(state.summary);
     
     // Store in LanceDB

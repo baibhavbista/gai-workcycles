@@ -2,9 +2,40 @@ import path from 'node:path';
 import { app } from 'electron';
 import { v4 as uuid } from 'uuid';
 import { OpenAI } from 'openai';
-import { db, getSettings, getEncryptedKey } from './db.js';
-import { FIELD_LABEL_MAP, getFieldLabel, isEmbeddableField } from './field-labels.js';
+import { getSettings, getEncryptedKey } from './db.ts';
 import { safeStorage } from 'electron';
+
+import {
+  Field,
+  Schema,
+  Utf8,
+  Int32,
+  TimestampMillisecond,
+  Float32,
+  FixedSizeList
+} from 'apache-arrow';
+
+// OpenAI embedding-3-small dimensions
+const embeddingDimension = 1536;
+const vectorField = new Field(
+  'vec',
+  new FixedSizeList(embeddingDimension, new Field('item', new Float32())),
+  false
+);
+
+// Define the full schema
+const arrowSchema = new Schema([
+  new Field('id', new Utf8(), false),          // "field:<row>:<col>" | "cycle:<id>" | "session:<id>"
+  new Field('level', new Utf8(), false),       // field | cycle | session
+  new Field('session_id', new Utf8(), false),
+  new Field('cycle_id', new Utf8(), true),     // NULL for sessions
+  new Field('column', new Utf8(), true),      // exact SQL column name. NULL for session  
+  new Field('field_label', new Utf8(), true), // human-readable question label
+  vectorField,
+  new Field('text', new Utf8(), false),
+  new Field('version', new Int32(), false),
+  new Field('created_at', new TimestampMillisecond(), false)
+]);
 
 // Lazy imports for LanceDB
 let lancedbConnect: any;
@@ -47,228 +78,33 @@ let tablePromise: Promise<any> | null = null;
 async function getEmbeddingTable() {
   if (tablePromise) return tablePromise;
   
+  // Create the promise for table initialization
+  tablePromise = initializeTable();
+  return tablePromise;
+}
+
+async function initializeTable() {
   await importLanceDB();
   const lanceDir = path.join(app.getPath('userData'), 'lance');
   const lancedb = await lancedbConnect(lanceDir);
   
   try {
     // Try to open existing table
-    tablePromise = lancedb.openTable('embeddings');
-  } catch {
-    // Create new table with schema
-    const schema = {
-      id: 'string',              // "field:<row>:<col>" | "cycle:<id>" | "session:<id>"
-      level: 'string',           // field | cycle | session
-      session_id: 'string',
-      cycle_id: 'string',        // NULL for sessions
-      column: 'string',          // exact SQL column name
-      field_label: 'string',     // human-readable question label
-      vec: 'vector[1536]',       // OpenAI embedding-3-small dimensions
-      text: 'string',
-      version: 'int',
-      created_at: 'timestamp'
-    };
-    
-    tablePromise = lancedb.createTable('embeddings', [], { schema });
+    console.log('Attempting to open existing LanceDB table...');
+    const table = await lancedb.openTable('embeddings');
+    console.log('Successfully opened existing LanceDB table');
+    return table;
+  } catch (error) {
+    console.log('Table does not exist, creating new LanceDB table...', error);
+    // unsure if we should have mode: 'overwrite' below
+    const table = await lancedb.createTable('embeddings', [], { schema: arrowSchema, mode: 'overwrite' });
+    console.log('Successfully created new LanceDB table');
+    return table;
   }
-  
-  return tablePromise;
 }
 
-// Embedding job queue management
-export interface EmbedJob {
-  id: string;
-  level: 'field' | 'cycle' | 'session';
-  sessionId: string;
-  cycleId?: string;
-  tableName: string;
-  rowId: string;
-  columnName?: string;
-  fieldLabel?: string;
-  text: string;
-  status: 'pending' | 'processing' | 'done' | 'error';
-  errorMessage?: string;
-  version: number;
-  createdAt: Date;
-  processedAt?: Date;
-}
-
-// Prepared statements for embed jobs
-const insertEmbedJobStmt = db.prepare(`
-  INSERT INTO embed_jobs (
-    id, level, session_id, cycle_id, table_name, row_id, column_name, field_label, text, status, version
-  ) VALUES (
-    @id, @level, @session_id, @cycle_id, @table_name, @row_id, @column_name, @field_label, @text, @status, @version
-  )
-`);
-
-const getPendingJobsStmt = db.prepare(`
-  SELECT * FROM embed_jobs 
-  WHERE status = 'pending' 
-  ORDER BY level, created_at ASC
-  LIMIT ?
-`);
-
-const updateJobStatusStmt = db.prepare(`
-  UPDATE embed_jobs 
-  SET status = @status, error_message = @error_message, processed_at = datetime('now')
-  WHERE id = @id
-`);
-
-const markJobProcessingStmt = db.prepare(`
-  UPDATE embed_jobs 
-  SET status = 'processing'
-  WHERE id = @id
-`);
-
-// Create embedding job
-export function createEmbedJob(
-  level: 'field' | 'cycle' | 'session',
-  sessionId: string,
-  tableName: string,
-  rowId: string,
-  text: string,
-  options: {
-    cycleId?: string;
-    columnName?: string;
-    fieldLabel?: string;
-  } = {}
-): string {
-  const id = uuid();
-  
-  insertEmbedJobStmt.run({
-    id,
-    level,
-    session_id: sessionId,
-    cycle_id: options.cycleId || null,
-    table_name: tableName,
-    row_id: rowId,
-    column_name: options.columnName || null,
-    field_label: options.fieldLabel || null,
-    text,
-    status: 'pending',
-    version: 1
-  });
-  
-  return id;
-}
-
-// Create field-level embedding jobs for a record
-export function createFieldEmbedJobs(
-  tableName: 'sessions' | 'cycles',
-  record: any,
-  sessionId: string,
-  cycleId?: string
-): string[] {
-  const jobs: string[] = [];
-  
-  for (const [column, value] of Object.entries(record)) {
-    if (!value || typeof value !== 'string' || !isEmbeddableField(column)) {
-      continue;
-    }
-    
-    const fieldLabel = getFieldLabel(column);
-    if (!fieldLabel) continue;
-    
-    const jobId = createEmbedJob('field', sessionId, tableName, record.id, value, {
-      cycleId,
-      columnName: column,
-      fieldLabel
-    });
-    
-    jobs.push(jobId);
-  }
-  
-  return jobs;
-}
-
-// Create cycle-level embedding job
-export function createCycleEmbedJob(cycleData: any): string {
-  // Combine planning and review fields into cycle summary
-  const planText = [
-    cycleData.plan_goal && `Goal: ${cycleData.plan_goal}`,
-    cycleData.plan_first_step && `First step: ${cycleData.plan_first_step}`,
-    cycleData.plan_hazards_cycle && `Hazards: ${cycleData.plan_hazards_cycle}`,
-    cycleData.plan_energy && `Energy: ${['Low', 'Medium', 'High'][cycleData.plan_energy]}`,
-    cycleData.plan_morale && `Morale: ${['Low', 'Medium', 'High'][cycleData.plan_morale]}`
-  ].filter(Boolean).join('. ');
-  
-  const reviewText = [
-    cycleData.review_status !== null && `Status: ${['miss', 'partial', 'hit'][cycleData.review_status]}`,
-    cycleData.review_noteworthy && `Noteworthy: ${cycleData.review_noteworthy}`,
-    cycleData.review_distractions && `Distractions: ${cycleData.review_distractions}`,
-    cycleData.review_improvement && `Improvement: ${cycleData.review_improvement}`
-  ].filter(Boolean).join('. ');
-  
-  const fullText = `START: ${planText} END: ${reviewText}`;
-  
-  return createEmbedJob('cycle', cycleData.session_id, 'cycles', cycleData.id, fullText, {
-    cycleId: cycleData.id
-  });
-}
-
-// Create session-level embedding job (will need GPT summary)
-export function createSessionEmbedJob(sessionData: any): string {
-  // This will be processed by the worker with GPT-4o-mini summarization
-  const rawText = JSON.stringify({
-    intentions: {
-      objective: sessionData.plan_objective,
-      importance: sessionData.plan_importance,
-      definitionOfDone: sessionData.plan_done_definition,
-      hazards: sessionData.plan_hazards,
-      miscNotes: sessionData.plan_misc_notes
-    },
-    review: {
-      accomplishments: sessionData.review_accomplishments,
-      comparison: sessionData.review_comparison,
-      obstacles: sessionData.review_obstacles,
-      successes: sessionData.review_successes,
-      takeaways: sessionData.review_takeaways
-    },
-    stats: {
-      cyclesPlanned: sessionData.cycles_planned,
-      cyclesCompleted: sessionData.cycles_completed,
-      workMinutes: sessionData.work_minutes
-    }
-  });
-  
-  return createEmbedJob('session', sessionData.id, 'sessions', sessionData.id, rawText);
-}
-
-// Get pending jobs for processing
-export function getPendingEmbedJobs(limit: number = 10): EmbedJob[] {
-  const rows = getPendingJobsStmt.all(limit);
-  return rows.map((row: any) => ({
-    id: row.id,
-    level: row.level,
-    sessionId: row.session_id,
-    cycleId: row.cycle_id,
-    tableName: row.table_name,
-    rowId: row.row_id,
-    columnName: row.column_name,
-    fieldLabel: row.field_label,
-    text: row.text,
-    status: row.status,
-    errorMessage: row.error_message,
-    version: row.version,
-    createdAt: new Date(row.created_at),
-    processedAt: row.processed_at ? new Date(row.processed_at) : undefined
-  }));
-}
-
-// Mark job as processing
-export function markJobProcessing(jobId: string): void {
-  markJobProcessingStmt.run({ id: jobId });
-}
-
-// Update job status
-export function updateJobStatus(jobId: string, status: 'done' | 'error', errorMessage?: string): void {
-  updateJobStatusStmt.run({
-    id: jobId,
-    status,
-    error_message: errorMessage || null
-  });
-}
+// Import the EmbedJob interface from db.ts
+export type { EmbedJob } from './db.ts';
 
 // Generate OpenAI embeddings
 export async function generateEmbedding(text: string): Promise<number[]> {
@@ -286,30 +122,41 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   return response.data[0].embedding;
 }
 
+function fieldValueToPromptValue(value: string): string {
+  if (!value) return 'N/A';
+  if (value === 'N/A') return 'N/A';
+  if (typeof value === 'string' && value.trim() === '') return 'N/A';
+  return value;
+}
+
 // Generate GPT-4o-mini summary for sessions
 export async function generateSessionSummary(sessionData: any): Promise<string> {
   const client = await getOpenAIClient();
   if (!client) {
     throw new Error('OpenAI client not available');
   }
+
+  // FIXME: maybe also include the cycle notes here
   
   const data = JSON.parse(sessionData);
   const prompt = `Summarize this work session in 150 words or less, focusing on key objectives, outcomes, and insights:
 
 Intentions:
-- Objective: ${data.intentions.objective}
-- Importance: ${data.intentions.importance}
-- Definition of Done: ${data.intentions.definitionOfDone}
-- Hazards: ${data.intentions.hazards}
+- Objective: ${fieldValueToPromptValue(data.intentions.objective)}
+- Importance: ${fieldValueToPromptValue(data.intentions.importance)}
+- Definition of Done: ${fieldValueToPromptValue(data.intentions.definitionOfDone)}
+- Hazards: ${fieldValueToPromptValue(data.intentions.hazards)}
 
 Review:
-- Accomplishments: ${data.review.accomplishments}
-- Comparison to normal output: ${data.review.comparison}
-- Obstacles: ${data.review.obstacles}
-- Successes: ${data.review.successes}
-- Takeaways: ${data.review.takeaways}
+- Accomplishments: ${fieldValueToPromptValue(data.review.accomplishments)}
+- Comparison to normal output: ${fieldValueToPromptValue(data.review.comparison)}
+- Obstacles: ${fieldValueToPromptValue(data.review.obstacles)}
+- Successes: ${fieldValueToPromptValue(data.review.successes)}
+- Takeaways: ${fieldValueToPromptValue(data.review.takeaways)}
 
-Stats: ${data.stats.cyclesCompleted}/${data.stats.cyclesPlanned} cycles completed`;
+Stats: ${data.stats.cyclesCompleted}/${data.stats.cyclesPlanned} cycles completed; Worked for ${(data.stats.workMinutes * data.stats.cyclesCompleted)} minutes total
+
+If any of the above fields say N/A, it means that the user did not fill in that field.`;
 
   const response = await client.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -418,92 +265,7 @@ export async function cascadingSearch(
   return [];
 }
 
-// Get job queue status
-export function getJobQueueStatus(): {
-  pending: number;
-  processing: number;
-  total: number;
-} {
-  const stats = db.prepare(`
-    SELECT 
-      status,
-      COUNT(*) as count
-    FROM embed_jobs 
-    GROUP BY status
-  `).all() as any[];
-  
-  const counts = { pending: 0, processing: 0, done: 0, error: 0 };
-  stats.forEach(row => {
-    counts[row.status as keyof typeof counts] = row.count;
-  });
-  
-  return {
-    pending: counts.pending,
-    processing: counts.processing,
-    total: counts.pending + counts.processing + counts.done + counts.error
-  };
-}
-
 // Reset OpenAI client (for settings changes)
 export function resetOpenAIClient(): void {
   openaiClient = null;
-}
-
-// Cleanup utilities for completed jobs
-const cleanupCompletedJobsStmt = db.prepare(`
-  DELETE FROM embed_jobs 
-  WHERE status = 'done' AND processed_at < datetime('now', '-7 days')
-`);
-
-const cleanupErrorJobsStmt = db.prepare(`
-  DELETE FROM embed_jobs 
-  WHERE status = 'error' AND created_at < datetime('now', '-30 days')
-`);
-
-const countJobsByStatusStmt = db.prepare(`
-  SELECT status, COUNT(*) as count 
-  FROM embed_jobs 
-  GROUP BY status
-`);
-
-// Clean up old completed jobs (older than 7 days)
-export function cleanupCompletedJobs(): number {
-  const result = cleanupCompletedJobsStmt.run();
-  return result.changes;
-}
-
-// Clean up old error jobs (older than 30 days)
-export function cleanupErrorJobs(): number {
-  const result = cleanupErrorJobsStmt.run();
-  return result.changes;
-}
-
-// Get job statistics
-export function getJobStatistics(): Record<string, number> {
-  const rows = countJobsByStatusStmt.all() as any[];
-  const stats: Record<string, number> = { pending: 0, processing: 0, done: 0, error: 0 };
-  
-  rows.forEach(row => {
-    stats[row.status] = row.count;
-  });
-  
-  return stats;
-}
-
-// Comprehensive cleanup (run periodically)
-export function performJobCleanup(): {
-  completedCleaned: number;
-  errorsCleaned: number;
-  totalRemaining: number;
-} {
-  const completedCleaned = cleanupCompletedJobs();
-  const errorsCleaned = cleanupErrorJobs();
-  const stats = getJobStatistics();
-  const totalRemaining = Object.values(stats).reduce((sum, count) => sum + count, 0);
-  
-  return {
-    completedCleaned,
-    errorsCleaned,
-    totalRemaining
-  };
 } 
