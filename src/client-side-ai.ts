@@ -264,3 +264,97 @@ export const transcribeAudio = async (audioBlob: Blob, apiKey: string): Promise<
     throw error;
   }
 };
+
+interface DistractionNote {
+  text: string;
+  timestamp: Date;
+}
+
+export const analyzeDistractions = async (
+  distractionNotes: DistractionNote[],
+  apiKey: string
+): Promise<string> => {
+  try {
+    if (!apiKey) {
+      throw new Error('OpenAI API key not found. Please add it in settings.');
+    }
+
+    if (distractionNotes.length === 0) {
+      return "No distractions recorded - great focus! 🎯";
+    }
+
+    // Format notes with timestamps for context
+    const notesText = distractionNotes
+      .map(note => {
+        const time = note.timestamp.toLocaleTimeString('en-US', { 
+          hour12: false, 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        return `${time}: ${note.text}`;
+      })
+      .join('\n');
+
+    const payload = {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `Analyze distraction notes from a work cycle and create a brief summary.
+
+Rules:
+1. Group similar distractions together
+2. Order by most to least disruptive
+3. Use plain nested lists only (no headings, bold, italics, or other formatting)
+4. Be as concise as possible while preserving key information
+5. Put reminders/tasks (like "remember to call doctor") at the top as separate bullets
+
+Format example:
+- Remember to book dentist appointment
+- Remember to reply to mom's email
+- Social media checks (3 times)
+  - Instagram notifications
+  - Twitter browsing
+- Noise from construction outside
+- Hunger and thirst
+  - Got snack at 10:15
+  - Coffee break thoughts
+
+Keep it minimal and factual.`
+        },
+        {
+          role: "user", 
+          content: `Analyze these distraction notes from my work cycle:\n\n${notesText}`
+        }
+      ],
+      max_tokens: 300,
+      temperature: 0.3
+    };
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenAI API error: ${response.status} – ${error}`);
+    }
+
+    const data = await response.json();
+    const analysis = data.choices?.[0]?.message?.content;
+
+    if (!analysis) {
+      throw new Error("No analysis returned from OpenAI");
+    }
+
+    return analysis;
+  } catch (error) {
+    console.error('Distraction analysis error:', error);
+    throw error;
+  }
+};

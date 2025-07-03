@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { ArrowRight, Target, Coffee, Square } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, Target, Coffee, Square, Loader2 } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import { LabelledTextArea } from '../components/LabelledTextArea';
 import type { CycleStatus } from '../types';
 import { BackButton } from '../components/BackButton';
-import { mergeDataOnVoiceComplete, type QuestionSpec } from '../client-side-ai';
+import { mergeDataOnVoiceComplete, analyzeDistractions, type QuestionSpec } from '../client-side-ai';
+import { getCycleNotes, getOpenAIKey, isElectron, getSettings } from '../electron-ipc';
 
 // Schema for auto-filling via VoiceRecorder
 const formSchema: QuestionSpec[] = [
@@ -23,7 +24,68 @@ export function CycleReflectionScreen() {
     distractions: '',
     improvement: '',
   });
+  const [isAnalyzingDistractions, setIsAnalyzingDistractions] = useState(false);
   
+  // Auto-analyze distractions on component mount
+  useEffect(() => {
+    const analyzeDistractionNotes = async () => {
+      // Validation checks
+      if (!isElectron() || !currentSession || !currentCycle) return;
+
+      try {
+        // Check if AI is enabled and API key exists
+        const [settings, apiKey] = await Promise.all([
+          getSettings(),
+          getOpenAIKey()
+        ]);
+
+        if (!settings?.aiEnabled || !apiKey) return;
+
+        // Start analysis
+        setIsAnalyzingDistractions(true);
+
+        // Fetch current cycle notes
+        const cycleNotes = await getCycleNotes(currentSession.id, currentCycle.id);
+        const distractionNotes = cycleNotes
+          .filter(note => note.noteType === 'distraction')
+          .map(note => ({
+            text: note.text,
+            timestamp: note.timestamp
+          }));
+
+        // only continue if we actually have distractionNotes
+        if (distractionNotes.length === 0) {
+          setIsAnalyzingDistractions(false);
+          return;
+        }
+
+        // Analyze distractions
+        const analysis = await analyzeDistractions(distractionNotes, apiKey);
+        
+        // do not set the result if prev.distractions already has data
+        setReflection(prev => {
+          // if prev.distractions is not a string
+          if (!prev.distractions || typeof prev.distractions !== 'string' || prev.distractions.trim() === '') {
+            return {
+              ...prev, 
+              distractions: analysis
+            };
+          } else {
+            return prev;
+          }
+        });
+
+      } catch (error) {
+        console.error('Failed to analyze distractions:', error);
+        // Fail silently - user can still manually input
+      } finally {
+        setIsAnalyzingDistractions(false);
+      }
+    };
+
+    analyzeDistractionNotes();
+  }, [currentSession?.id, currentCycle?.id]);
+
   const handleSubmit = (action: 'break' | 'finish') => {
     completeCycle(reflection);
   };
@@ -125,12 +187,29 @@ export function CycleReflectionScreen() {
                 placeholder="Any insights, breakthroughs, or notable observations..."
               />
               
-              <LabelledTextArea
-                label="Any distractions?"
-                value={reflection.distractions}
-                onChange={(e) => setReflection(prev => ({ ...prev, distractions: e.target.value }))}
-                placeholder="What pulled your attention away from the task..."
-              />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <label className="block font-medium text-gray-900 text-sm">
+                    {isAnalyzingDistractions ? 'Analyzing distractions...' : 'Any distractions?'}
+                  </label>
+                  {isAnalyzingDistractions && (
+                    <Loader2 className="w-4 h-4 text-[#482F60] animate-spin" />
+                  )}
+                </div>
+                <textarea
+                  value={reflection.distractions}
+                  onChange={(e) => setReflection(prev => ({ ...prev, distractions: e.target.value }))}
+                  placeholder={isAnalyzingDistractions 
+                    ? "AI is analyzing your distraction notes..." 
+                    : "What pulled your attention away from the task..."
+                  }
+                  disabled={isAnalyzingDistractions}
+                  className={`w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm min-h-[80px] ${
+                    isAnalyzingDistractions ? 'bg-gray-50 cursor-wait' : ''
+                  }`}
+                  rows={4}
+                />
+              </div>
               
               <LabelledTextArea
                 label="Things to improve for next cycle?"
