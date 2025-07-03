@@ -2,10 +2,10 @@
   "extends": "./tsconfig.node.json",
   "compilerOptions": {
     "module": "CommonJS",
-    "outDir": "./.electron/out",
-    "rootDir": "./.electron",
+    "outDir": "./electron/out",
+    "rootDir": "./electron",
     "types": ["node", "electron"],
     "noEmit": false
   },
-  "include": [".electron/**/*.ts"]
+  "include": ["electron/**/*.ts"]
 } 

@@ -3,10 +3,10 @@ module.exports = {
   productName: 'WorkCycles',
   files: [
     'dist/**/*',
-    '.electron/**/*'
+    'electron/**/*'
   ],
   extraResources: [
-    { from: '.electron/assets', to: 'assets' }
+    { from: 'electron/assets', to: 'assets' }
   ],
   mac: {
     target: 'dmg',

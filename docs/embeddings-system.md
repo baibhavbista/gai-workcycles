@@ -73,7 +73,7 @@ We have successfully implemented a sophisticated **three-level embedding system*
 
 ### **Core Files Structure**
 ```
-.electron/
+electron/
 ├── db.ts                    # Main embedding system (merged from separate modules)
 ├── embedding-manager.ts     # System orchestration and status management  
 ├── embedding-workflows.ts   # LangGraph processing workflows
