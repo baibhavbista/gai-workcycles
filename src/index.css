@@ -1,3 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* AI-filled field animation */
+.ai-filled-glow {
+  border-color: #10b981 !important;
+  animation: aiGlow 3s ease-out forwards;
+}
+
+@keyframes aiGlow {
+  0% { 
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% { 
+    box-shadow: 0 0 20px 5px rgba(16, 185, 129, 0.2);
+  }
+  100% { 
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.sparkle-icon {
+  font-size: 12px;
+}

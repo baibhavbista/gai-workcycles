@@ -70,7 +70,7 @@ export function SessionReviewScreen() {
               label="What did I get done in this session?"
               value={review.accomplishments}
               onChange={(e) => setReview(prev => ({ ...prev, accomplishments: e.target.value }))}
-              placeholder="List your key accomplishments and completed tasks..."
+              // TODO: if user has a bunch of work notes, add suggested summary from all work notes from this session
               textareaClassName="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
             />
             
@@ -78,7 +78,6 @@ export function SessionReviewScreen() {
               label="How did this compare to my normal work output?"
               value={review.comparison}
               onChange={(e) => setReview(prev => ({ ...prev, comparison: e.target.value }))}
-              placeholder="Was this more or less productive than usual? Why..."
               textareaClassName="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
             />
             
@@ -86,7 +85,6 @@ export function SessionReviewScreen() {
               label="Did I get bogged down? Where?"
               value={review.obstacles}
               onChange={(e) => setReview(prev => ({ ...prev, obstacles: e.target.value }))}
-              placeholder="Any areas where progress slowed or stopped..."
               textareaClassName="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
             />
             
@@ -94,7 +92,6 @@ export function SessionReviewScreen() {
               label="What went well? How can I replicate this in the future?"
               value={review.successes}
               onChange={(e) => setReview(prev => ({ ...prev, successes: e.target.value }))}
-              placeholder="Identify what worked and how to do more of it..."
               textareaClassName="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
             />
             
@@ -102,7 +99,6 @@ export function SessionReviewScreen() {
               label="Any other takeaways? Lessons to share with others?"
               value={review.takeaways}
               onChange={(e) => setReview(prev => ({ ...prev, takeaways: e.target.value }))}
-              placeholder="Broader insights, patterns, or wisdom from this session..."
               textareaClassName="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm"
             />
           </div>

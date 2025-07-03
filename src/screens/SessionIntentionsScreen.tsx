@@ -39,6 +39,7 @@ export function SessionIntentionsScreen() {
     miscNotes: '',
   }));
   const [showSettings, setShowSettings] = useState(false);
+  const [aiFilledFields, setAiFilledFields] = useState<Set<string>>(new Set());
 
   
   const handleSubmit = (e: React.FormEvent) => {
@@ -47,8 +48,21 @@ export function SessionIntentionsScreen() {
     startNewSession(intentions);
   };
   
+  // Mark field as AI-filled with auto-clear after 3 seconds
+  const markFieldAsAiFilled = (fieldKey: string) => {
+    setAiFilledFields(prev => new Set(prev).add(fieldKey));
+    
+    setTimeout(() => {
+      setAiFilledFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fieldKey);
+        return newSet;
+      });
+    }, 3000);
+  };
+
   const handleVoiceComplete = (transcript: string, filled?: Record<string, string>) => {
-    mergeDataOnVoiceComplete(setIntentions, formSchema, transcript, filled);
+    mergeDataOnVoiceComplete(setIntentions, formSchema, transcript, filled, markFieldAsAiFilled);
     console.log('new intentions', intentions);
   };
   
@@ -67,7 +81,6 @@ export function SessionIntentionsScreen() {
         <div className="flex items-center justify-between mb-4">
           <BackButton />
           <div className="flex items-center gap-2">
-            <Target className="w-5 h-5 text-[#482F60]" />
             <h1 className="text-xl font-bold text-gray-900">Session Prep</h1>
           </div>
           <VoiceRecorder formSchema={formSchema} onComplete={handleVoiceComplete} />
@@ -91,28 +104,32 @@ export function SessionIntentionsScreen() {
                 label="What am I trying to accomplish?"
                 value={intentions.objective}
                 onChange={(e) => setIntentions(prev => ({ ...prev, objective: e.target.value }))}
-                placeholder="Describe your main goal for this session..."
+                isAiFilled={aiFilledFields.has('objective')}
+                showSparkle={aiFilledFields.has('objective')}
               />
               
               <LabelledTextArea
                 label="Why is this important and valuable?"
                 value={intentions.importance}
                 onChange={(e) => setIntentions(prev => ({ ...prev, importance: e.target.value }))}
-                placeholder="What makes this work meaningful and worth doing now..."
+                isAiFilled={aiFilledFields.has('importance')}
+                showSparkle={aiFilledFields.has('importance')}
               />
               
               <LabelledTextArea
                 label="How will I know this is complete?"
                 value={intentions.definitionOfDone}
                 onChange={(e) => setIntentions(prev => ({ ...prev, definitionOfDone: e.target.value }))}
-                placeholder="What will success look like? How will you measure completion..."
+                isAiFilled={aiFilledFields.has('definitionOfDone')}
+                showSparkle={aiFilledFields.has('definitionOfDone')}
               />
               
               <LabelledTextArea
                 label="Any risks / hazards? Potential distractions, procrastination, etc."
                 value={intentions.hazards}
                 onChange={(e) => setIntentions(prev => ({ ...prev, hazards: e.target.value }))}
-                placeholder="What might get in your way? How can you prepare for challenges..."
+                isAiFilled={aiFilledFields.has('hazards')}
+                showSparkle={aiFilledFields.has('hazards')}
               />
               
               <div className="flex items-center gap-2">
@@ -135,7 +152,8 @@ export function SessionIntentionsScreen() {
                 label="Anything else noteworthy?"
                 value={intentions.miscNotes}
                 onChange={(e) => setIntentions(prev => ({ ...prev, miscNotes: e.target.value }))}
-                placeholder="Any other thoughts, notes, or considerations..."
+                isAiFilled={aiFilledFields.has('miscNotes')}
+                showSparkle={aiFilledFields.has('miscNotes')}
               />
             </div>
           </div>

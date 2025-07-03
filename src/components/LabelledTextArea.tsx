@@ -10,6 +10,8 @@ interface LabelledTextAreaProps {
   className?: string;
   textareaClassName?: string;
   rows?: number;
+  isAiFilled?: boolean;
+  showSparkle?: boolean;
 }
 
 export function LabelledTextArea({
@@ -21,19 +23,31 @@ export function LabelledTextArea({
   className = "",
   textareaClassName,
   rows = 2,
+  isAiFilled = false,
+  showSparkle = false,
   ...props
 }: LabelledTextAreaProps) {
+  // Build textarea className with AI-filled styling
+  const getTextareaClassName = () => {
+    const baseClass = textareaClassName || "w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm";
+    const aiFilledClass = isAiFilled ? "ai-filled-glow" : "";
+    return `${baseClass} ${aiFilledClass}`;
+  };
+
   return (
     <div className={className}>
-      <label className="block font-medium text-gray-900 mb-1 text-sm">
+      <label className="block font-medium text-gray-900 mb-1 text-sm flex items-center gap-1">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
+        {showSparkle && (
+          <span className="sparkle-icon animate-pulse text-green-500">✨</span>
+        )}
       </label>
       <AutoResizeTextarea
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={textareaClassName}
+        className={getTextareaClassName()}
         rows={rows}
         {...props}
       />

@@ -161,14 +161,14 @@ export function VoiceRecorder({ formSchema, onComplete, className = '' }: VoiceR
         return (
           <>
             <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-            <span className="text-sm font-medium text-blue-600">Processing…</span>
+            <span className="text-sm font-medium text-blue-600">Processing</span>
           </>
         );
       case 'complete':
         return (
           <>
             <CheckCircle className="w-5 h-5 text-green-500" />
-            <span className="text-sm font-medium text-green-600">Form filled!</span>
+            <span className="text-sm font-medium text-green-600">Filled!</span>
           </>
         );
       case 'error':
@@ -202,7 +202,7 @@ export function VoiceRecorder({ formSchema, onComplete, className = '' }: VoiceR
         ref={buttonRef}
         onClick={handleClick}
         disabled={!hasApiKey || state === 'processing' || state === 'complete'}
-        className={`flex items-center gap-2 px-4 py-2 border rounded-xl transition-all duration-200 
+        className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-xl transition-all duration-200 w-[128px]
           ${getButtonStyle()} ${className}
           ${!hasApiKey ? 'opacity-50 cursor-not-allowed' : ''}`}
       >

@@ -3,6 +3,7 @@ import { ArrowRight, Target, Coffee, Square, Loader2 } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import { LabelledTextArea } from '../components/LabelledTextArea';
+import { AutoResizeTextarea } from '../components/AutoResizeTextarea';
 import type { CycleStatus } from '../types';
 import { BackButton } from '../components/BackButton';
 import { mergeDataOnVoiceComplete, analyzeDistractions, type QuestionSpec } from '../client-side-ai';
@@ -25,6 +26,7 @@ export function CycleReflectionScreen() {
     improvement: '',
   });
   const [isAnalyzingDistractions, setIsAnalyzingDistractions] = useState(false);
+  const [aiFilledFields, setAiFilledFields] = useState<Set<string>>(new Set());
   
   // Auto-analyze distractions on component mount
   useEffect(() => {
@@ -66,6 +68,8 @@ export function CycleReflectionScreen() {
         setReflection(prev => {
           // if prev.distractions is not a string
           if (!prev.distractions || typeof prev.distractions !== 'string' || prev.distractions.trim() === '') {
+            // Mark as AI-filled
+            markFieldAsAiFilled('distractions');
             return {
               ...prev, 
               distractions: analysis
@@ -91,8 +95,21 @@ export function CycleReflectionScreen() {
   };
 
 
+  // Mark field as AI-filled with auto-clear after 3 seconds
+  const markFieldAsAiFilled = (fieldKey: string) => {
+    setAiFilledFields(prev => new Set(prev).add(fieldKey));
+    
+    setTimeout(() => {
+      setAiFilledFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fieldKey);
+        return newSet;
+      });
+    }, 3000);
+  };
+
   const handleVoiceComplete = (transcript: string, filled?: Record<string, string>) => {
-    mergeDataOnVoiceComplete(setReflection, formSchema, transcript, filled);
+    mergeDataOnVoiceComplete(setReflection, formSchema, transcript, filled, markFieldAsAiFilled);
     console.log('new reflection:', reflection);
   };
   
@@ -184,7 +201,8 @@ export function CycleReflectionScreen() {
                 label="Anything noteworthy?"
                 value={reflection.noteworthy}
                 onChange={(e) => setReflection(prev => ({ ...prev, noteworthy: e.target.value }))}
-                placeholder="Any insights, breakthroughs, or notable observations..."
+                isAiFilled={aiFilledFields.has('noteworthy')}
+                showSparkle={aiFilledFields.has('noteworthy')}
               />
               
               <div className="space-y-1">
@@ -195,10 +213,13 @@ export function CycleReflectionScreen() {
                   {isAnalyzingDistractions && (
                     <Loader2 className="w-4 h-4 text-[#482F60] animate-spin" />
                   )}
+                  {aiFilledFields.has('distractions') && (
+                    <span className="sparkle-icon animate-pulse text-green-500">✨</span>
+                  )}
                 </div>
-                <textarea
+                <AutoResizeTextarea
                   value={reflection.distractions}
-                  onChange={(e) => setReflection(prev => ({ ...prev, distractions: e.target.value }))}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReflection(prev => ({ ...prev, distractions: e.target.value }))}
                   placeholder={isAnalyzingDistractions 
                     ? "AI is analyzing your distraction notes..." 
                     : "What pulled your attention away from the task..."
@@ -206,7 +227,7 @@ export function CycleReflectionScreen() {
                   disabled={isAnalyzingDistractions}
                   className={`w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#6366f1] focus:border-[#6366f1] transition-colors text-sm min-h-[80px] ${
                     isAnalyzingDistractions ? 'bg-gray-50 cursor-wait' : ''
-                  }`}
+                  } ${aiFilledFields.has('distractions') ? 'ai-filled-glow' : ''}`}
                   rows={4}
                 />
               </div>
@@ -215,7 +236,8 @@ export function CycleReflectionScreen() {
                 label="Things to improve for next cycle?"
                 value={reflection.improvement}
                 onChange={(e) => setReflection(prev => ({ ...prev, improvement: e.target.value }))}
-                placeholder="What would help you be more effective next time..."
+                isAiFilled={aiFilledFields.has('improvement')}
+                showSparkle={aiFilledFields.has('improvement')}
               />
             </div>
           </div>

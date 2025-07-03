@@ -12,7 +12,7 @@ export function AutoResizeTextarea({
   value, 
   onChange, 
   placeholder, 
-  className = "w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm",
+  className = "w-full p-2 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm",
   rows = 2,
   ...props 
 }: AutoResizeTextareaProps) {

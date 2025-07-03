@@ -28,6 +28,7 @@ export function PreCycleScreen() {
     distractions: '',
     improvement: '',
   });
+  const [aiFilledFields, setAiFilledFields] = useState<Set<string>>(new Set());
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +37,21 @@ export function PreCycleScreen() {
   };
 
 
+  // Mark field as AI-filled with auto-clear after 3 seconds
+  const markFieldAsAiFilled = (fieldKey: string) => {
+    setAiFilledFields(prev => new Set(prev).add(fieldKey));
+    
+    setTimeout(() => {
+      setAiFilledFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fieldKey);
+        return newSet;
+      });
+    }, 3000);
+  };
+
   const handleVoiceComplete = (transcript: string, filled?: Record<string, string>) => {
-    mergeDataOnVoiceComplete(setCycleData, formSchema, transcript, filled);
+    mergeDataOnVoiceComplete(setCycleData, formSchema, transcript, filled, markFieldAsAiFilled);
     console.log('new cycle data', cycleData);
   };
   
@@ -75,22 +89,25 @@ export function PreCycleScreen() {
                 label="What am I trying to accomplish this cycle?"
                 value={cycleData.goal}
                 onChange={(e) => setCycleData(prev => ({ ...prev, goal: e.target.value }))}
-                placeholder="Be specific about what you want to achieve in the next 30 minutes..."
                 required
+                isAiFilled={aiFilledFields.has('goal')}
+                showSparkle={aiFilledFields.has('goal')}
               />
               
               <LabelledTextArea
                 label="How will I get started?"
                 value={cycleData.firstStep}
                 onChange={(e) => setCycleData(prev => ({ ...prev, firstStep: e.target.value }))}
-                placeholder="What's your first step? How will you begin..."
+                isAiFilled={aiFilledFields.has('firstStep')}
+                showSparkle={aiFilledFields.has('firstStep')}
               />
               
               <LabelledTextArea
                 label="Any hazards present?"
                 value={cycleData.hazards}
                 onChange={(e) => setCycleData(prev => ({ ...prev, hazards: e.target.value }))}
-                placeholder="What might distract you or slow you down in this cycle..."
+                isAiFilled={aiFilledFields.has('hazards')}
+                showSparkle={aiFilledFields.has('hazards')}
               />
             </div>
           </div>
@@ -102,11 +119,16 @@ export function PreCycleScreen() {
                 <label className="block font-medium text-gray-900 mb-2 text-sm flex items-center gap-1">
                   <span className="text-yellow-500">⚡</span>
                   Energy Level <span className="text-red-500">*</span>
+                  {aiFilledFields.has('energy') && (
+                    <span className="sparkle-icon animate-pulse text-green-500">✨</span>
+                  )}
                 </label>
                 <select
                   value={cycleData.energy}
                   onChange={(e) => setCycleData(prev => ({ ...prev, energy: e.target.value as EnergyLevel }))}
-                  className="w-full p-2.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
+                  className={`w-full p-2.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm ${
+                    aiFilledFields.has('energy') ? 'ai-filled-glow' : ''
+                  }`}
                 >
                   <option value="">Select energy level</option>
                   <option value="High">High</option>
@@ -119,11 +141,16 @@ export function PreCycleScreen() {
                 <label className="block font-medium text-gray-900 mb-2 text-sm flex items-center gap-1">
                   <span className="text-red-500">❤️</span>
                   Morale Level <span className="text-red-500">*</span>
+                  {aiFilledFields.has('morale') && (
+                    <span className="sparkle-icon animate-pulse text-green-500">✨</span>
+                  )}
                 </label>
                 <select
                   value={cycleData.morale}
                   onChange={(e) => setCycleData(prev => ({ ...prev, morale: e.target.value as MoraleLevel }))}
-                  className="w-full p-2.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
+                  className={`w-full p-2.5 border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm ${
+                    aiFilledFields.has('morale') ? 'ai-filled-glow' : ''
+                  }`}
                 >
                   <option value="">Select morale level</option>
                   <option value="High">High</option>

@@ -190,7 +190,13 @@ export async function autoFillForm(
   throw new Error("Failed to obtain valid JSON from OpenAI after 2 attempts");
 } 
 
-export const mergeDataOnVoiceComplete = (setterFn: (arg0: { (prev: any): any; (prev: any): any; }) => void, formSchema: QuestionSpec[], transcript: string, filled?: Record<string, string>) => {
+export const mergeDataOnVoiceComplete = (
+  setterFn: (arg0: { (prev: any): any; (prev: any): any; }) => void, 
+  formSchema: QuestionSpec[], 
+  transcript: string, 
+  filled?: Record<string, string>,
+  onFieldFilled?: (fieldKey: string) => void
+) => {
   console.log('transcript', transcript);
   console.log('filled', filled);
 
@@ -213,6 +219,11 @@ export const mergeDataOnVoiceComplete = (setterFn: (arg0: { (prev: any): any; (p
 
         const newValue = shouldAppend ? `${prevValue.trim()}\n${value}` : value;
         (merged as any)[key] = newValue;
+        
+        // Mark this field as AI-filled
+        if (onFieldFilled) {
+          onFieldFilled(key);
+        }
       }
       return merged;
     });
@@ -225,6 +236,11 @@ export const mergeDataOnVoiceComplete = (setterFn: (arg0: { (prev: any): any; (p
         ...prev,
         [firstKey]: (prev[firstKey] ? (prev[firstKey] + '\n\n' + transcript) : transcript)
       }));
+      
+      // Mark this field as AI-filled
+      if (onFieldFilled) {
+        onFieldFilled(firstKey);
+      }
     }
   }
 };
