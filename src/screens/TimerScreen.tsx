@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Pause, Play, Square, Mic, MicOff, Target, Plus, Edit3 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Pause, Play, Square, Mic, MicOff, Target, Plus, Edit3, Loader2 } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { Timer } from '../components/Timer';
+import { getOpenAIKey } from '../electron-ipc';
+import { transcribeAudio } from '../client-side-ai';
 
 interface LogEntry {
   id: string;
@@ -30,12 +32,28 @@ export function TimerScreen() {
   const [newNote, setNewNote] = useState('');
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const audioChunks = useRef<Blob[]>([]);
+  const currentStream = useRef<MediaStream | null>(null);
   
   // Start timer automatically when component mounts
   useEffect(() => {
     if (timerStatus === 'idle') {
       startTimer();
     }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up any active recording
+      if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
+        mediaRecorder.current.stop();
+      }
+      if (currentStream.current) {
+        currentStream.current.getTracks().forEach(track => track.stop());
+      }
+    };
   }, []);
   
   const handleStartPause = () => {
@@ -46,39 +64,102 @@ export function TimerScreen() {
     }
   };
   
-  const handleVoiceNote = (kind: 'work' | 'distraction') => {
+  const cleanupRecording = () => {
+    if (currentStream.current) {
+      currentStream.current.getTracks().forEach(track => track.stop());
+      currentStream.current = null;
+    }
+    audioChunks.current = [];
+    mediaRecorder.current = null;
+  };
+
+  const handleVoiceNote = async (kind: 'work' | 'distraction') => {
     const isRecording = kind === 'work' ? workRecordingState : distractionRecordingState;
     const setRecordingState = kind === 'work' ? setWorkRecordingState : setDistractionRecordingState;
     
+    // Prevent multiple rapid clicks
+    if (isRecording === 'processing' || isRecording === 'complete') {
+      return;
+    }
+    
     if (isRecording === 'idle') {
       // Start recording
-      setRecordingState('recording');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        currentStream.current = stream;
+        mediaRecorder.current = new MediaRecorder(stream);
+        
+        mediaRecorder.current.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunks.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.current.onstop = async () => {
+          try {
+            setRecordingState('processing');
+            
+            if (audioChunks.current.length === 0) {
+              throw new Error('No audio data recorded');
+            }
+            
+            const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
+
+            const apiKey = await getOpenAIKey();
+            if (!apiKey) throw new Error('OpenAI API key missing');
+            const transcript = await transcribeAudio(audioBlob, apiKey);
+
+            if (!transcript.trim()) {
+              throw new Error('No speech detected');
+            }
+
+            // Add to log
+            const newEntry: LogEntry = {
+              id: Math.random().toString(36).substring(2),
+              text: transcript,
+              timestamp: new Date(),
+              type: 'voice'
+            };
+            
+            if (kind === 'work') {
+              setWorkLog(prev => [newEntry, ...prev]);
+            } else {
+              setDistractionLog(prev => [newEntry, ...prev]);
+            }
+
+            setRecordingState('complete');
+
+            setTimeout(() => {
+              setRecordingState('idle');
+            }, 1500);
+          } catch (error) {
+            console.error('Error processing audio:', error);
+            setRecordingState('idle');
+            // You could add a toast notification here to show the error to the user
+          } finally {
+            cleanupRecording();
+          }
+        };
+
+        mediaRecorder.current.onerror = (event) => {
+          console.error('MediaRecorder error:', event);
+          setRecordingState('idle');
+          cleanupRecording();
+        };
+
+        mediaRecorder.current.start();
+        setRecordingState('recording');
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        setRecordingState('idle');
+        cleanupRecording();
+        // You could add a toast notification here to show the error to the user
+      }
     } else if (isRecording === 'recording') {
       // Stop recording and process
-      setRecordingState('processing');
-      
-      // Simulate processing
-      setTimeout(() => {
-        setRecordingState('complete');
-        
-        // Add to log
-        const newEntry: LogEntry = {
-          id: Math.random().toString(36).substring(2),
-          text: `Voice note: ${kind === 'work' ? 'Made progress on the main task' : 'Got distracted by notifications'}`,
-          timestamp: new Date(),
-          type: 'voice'
-        };
-        
-        if (kind === 'work') {
-          setWorkLog(prev => [newEntry, ...prev]);
-        } else {
-          setDistractionLog(prev => [newEntry, ...prev]);
-        }
-        
-        setTimeout(() => {
-          setRecordingState('idle');
-        }, 1500);
-      }, 2000);
+      if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
+        mediaRecorder.current.stop();
+      }
     }
   };
   
@@ -122,7 +203,7 @@ export function TimerScreen() {
       case 'recording':
         return <MicOff className={`w-6 h-6 ${kind === 'work' ? 'text-green-600' : 'text-red-600'}`} />;
       case 'processing':
-        return <div className={`w-6 h-6 rounded-full border-2 border-t-transparent animate-spin ${kind === 'work' ? 'border-green-600' : 'border-red-600'}`} />;
+        return <Loader2 className={`w-6 h-6 animate-spin ${kind === 'work' ? 'text-green-600' : 'text-red-600'}`} />;
       case 'complete':
         return <div className={`w-6 h-6 rounded-full ${kind === 'work' ? 'bg-green-600' : 'bg-red-600'} flex items-center justify-center`}>
           <div className="w-2 h-2 bg-white rounded-full" />
@@ -132,6 +213,12 @@ export function TimerScreen() {
   
   const getVoiceButtonStyle = (state: RecordingState, kind: 'work' | 'distraction') => {
     const baseStyle = "p-4 rounded-xl border-2 border-dashed transition-all duration-200";
+    const otherState = kind === 'work' ? distractionRecordingState : workRecordingState;
+    const isDisabledByOther = otherState === 'recording' || otherState === 'processing';
+    
+    if (isDisabledByOther && state === 'idle') {
+      return `${baseStyle} border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed`;
+    }
     
     switch (state) {
       case 'idle':
@@ -222,7 +309,7 @@ export function TimerScreen() {
         <div className="grid grid-cols-2 gap-4 mb-6">
           <button
             onClick={() => handleVoiceNote('work')}
-            disabled={workRecordingState === 'processing' || workRecordingState === 'complete'}
+            disabled={workRecordingState === 'processing' || workRecordingState === 'complete' || distractionRecordingState === 'recording' || distractionRecordingState === 'processing'}
             className={getVoiceButtonStyle(workRecordingState, 'work')}
           >
             <div className="flex flex-col items-center gap-2">
@@ -238,7 +325,7 @@ export function TimerScreen() {
           
           <button
             onClick={() => handleVoiceNote('distraction')}
-            disabled={distractionRecordingState === 'processing' || distractionRecordingState === 'complete'}
+            disabled={distractionRecordingState === 'processing' || distractionRecordingState === 'complete' || workRecordingState === 'recording' || workRecordingState === 'processing'}
             className={getVoiceButtonStyle(distractionRecordingState, 'distraction')}
           >
             <div className="flex flex-col items-center gap-2">
