@@ -25,9 +25,11 @@ export function Timer({ size = 200 }: TimerProps) {
   const strokeDashoffset = circumference * (1 - progress);
   
   // Calculate dot position
-  const angle = progress * 2 * Math.PI - Math.PI / 2; // Start from top
-  const dotX = size / 2 + (size / 2 - 10) * Math.cos(angle);
-  const dotY = size / 2 + (size / 2 - 10) * Math.sin(angle);
+  // Since SVG is rotated -90deg, we need to account for that in our angle calculation
+  const angle = progress * 2 * Math.PI; // Start from right (0 radians) due to SVG rotation
+  const radius = size / 2 - 10;
+  const dotX = size / 2 + radius * Math.cos(angle);
+  const dotY = size / 2 + radius * Math.sin(angle);
   
   return (
     <div className="relative flex items-center justify-center">
