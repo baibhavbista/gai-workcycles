@@ -15,4 +15,10 @@ contextBridge.exposeInMainWorld('wc', {
   isEncryptionAvailable: () => ipcRenderer.invoke('wc:is-encryption-available'),
   updateTray: (title) => ipcRenderer.invoke('wc:update-tray', title),
   saveSessionReview: (id, review) => ipcRenderer.invoke('wc:session-review-save', id, review),
+  // Cycle notes
+  saveCycleNote: (payload) => ipcRenderer.invoke('wc:cycle-note-save', payload),
+  getCycleNotes: (sessionId, cycleId) => ipcRenderer.invoke('wc:cycle-notes-get', sessionId, cycleId),
+  getSessionNotes: (sessionId) => ipcRenderer.invoke('wc:session-notes-get', sessionId),
+  deleteCycleNote: (noteId) => ipcRenderer.invoke('wc:cycle-note-delete', noteId),
+  updateCycleNote: (noteId, text) => ipcRenderer.invoke('wc:cycle-note-update', noteId, text),
 }); 

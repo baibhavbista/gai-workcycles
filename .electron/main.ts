@@ -17,6 +17,12 @@ import {
   saveEncryptedKey,
   getEncryptedKey,
   saveSessionReview,
+  saveCycleNote,
+  getCycleNotes,
+  getSessionNotes,
+  deleteCycleNote,
+  updateCycleNote,
+  CycleNotePayload,
 } from './db';
 import { setupVectorTable, indexCycleEmbedding, searchSimilar } from './vector';
 
@@ -337,4 +343,28 @@ ipcMain.handle('wc:update-tray', (_e, title: string) => {
 ipcMain.handle('wc:session-review-save', (_e, sessionId: string, review) => {
   saveSessionReview(sessionId, review);
   return { ok: true };
-}); 
+});
+
+// -------- Cycle Notes IPC --------
+
+ipcMain.handle('wc:cycle-note-save', (_e, payload: CycleNotePayload) => {
+  return saveCycleNote(payload);
+});
+
+ipcMain.handle('wc:cycle-notes-get', (_e, sessionId: string, cycleId: string) => {
+  return getCycleNotes(sessionId, cycleId);
+});
+
+ipcMain.handle('wc:session-notes-get', (_e, sessionId: string) => {
+  return getSessionNotes(sessionId);
+});
+
+ipcMain.handle('wc:cycle-note-delete', (_e, noteId: string) => {
+  deleteCycleNote(noteId);
+  return { ok: true };
+});
+
+ipcMain.handle('wc:cycle-note-update', (_e, noteId: string, text: string) => {
+  updateCycleNote(noteId, text);
+  return { ok: true };
+});

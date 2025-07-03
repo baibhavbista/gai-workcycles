@@ -2,15 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Pause, Play, Square, Mic, MicOff, Target, Plus, Edit3, Loader2 } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { Timer } from '../components/Timer';
-import { getOpenAIKey } from '../electron-ipc';
+import { getOpenAIKey, saveCycleNote, getCycleNotes, getSessionNotes, updateCycleNote, isElectron, type CycleNote } from '../electron-ipc';
 import { transcribeAudio } from '../client-side-ai';
 
-interface LogEntry {
-  id: string;
-  text: string;
-  timestamp: Date;
-  type: 'voice' | 'manual';
-}
+// Using CycleNote from electron-ipc instead of local LogEntry
+type LogEntry = CycleNote;
 
 type RecordingState = 'idle' | 'recording' | 'processing' | 'complete';
 
@@ -29,6 +25,9 @@ export function TimerScreen() {
   const [activeTab, setActiveTab] = useState<'work' | 'distraction'>('work');
   const [workLog, setWorkLog] = useState<LogEntry[]>([]);
   const [distractionLog, setDistractionLog] = useState<LogEntry[]>([]);
+  const [sessionWorkNotesOtherCycles, setSessionWorkNotesOtherCycles] = useState<LogEntry[]>([]);
+  const [sessionDistractionNotesOtherCycles, setSessionDistractionNotesOtherCycles] = useState<LogEntry[]>([]);
+  const [showingSessionNotes, setShowingSessionNotes] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -42,6 +41,40 @@ export function TimerScreen() {
       startTimer();
     }
   }, []);
+
+  // Load existing notes on mount
+  useEffect(() => {
+    const loadNotes = async () => {
+      if (isElectron() && currentSession && currentCycle) {
+        try {
+          // Load current cycle notes
+          const cycleNotes = await getCycleNotes(currentSession.id, currentCycle.id);
+          const workNotes = cycleNotes.filter(note => note.noteType === 'work');
+          const distractionNotes = cycleNotes.filter(note => note.noteType === 'distraction');
+          setWorkLog(workNotes);
+          setDistractionLog(distractionNotes);
+
+          // Load all session notes and split by cycle
+          const sessionNotes = await getSessionNotes(currentSession.id);
+          const currentCycleId = currentCycle.id;
+          
+          // Filter out current cycle notes to get "other cycles" notes
+          const otherCycleNotes = sessionNotes.filter(note => note.cycleId !== currentCycleId);
+          
+          // Split other cycle notes by type
+          const sessionWorkOther = otherCycleNotes.filter(note => note.noteType === 'work');
+          const sessionDistractionOther = otherCycleNotes.filter(note => note.noteType === 'distraction');
+          
+          setSessionWorkNotesOtherCycles(sessionWorkOther);
+          setSessionDistractionNotesOtherCycles(sessionDistractionOther);
+        } catch (error) {
+          console.error('Failed to load notes:', error);
+        }
+      }
+    };
+    
+    loadNotes();
+  }, [currentSession?.id, currentCycle?.id]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -113,18 +146,61 @@ export function TimerScreen() {
               throw new Error('No speech detected');
             }
 
-            // Add to log
-            const newEntry: LogEntry = {
-              id: Math.random().toString(36).substring(2),
-              text: transcript,
-              timestamp: new Date(),
-              type: 'voice'
-            };
-            
-            if (kind === 'work') {
-              setWorkLog(prev => [newEntry, ...prev]);
+            // Save to database and update local state
+            const timestamp = new Date();
+            if (isElectron()) {
+              try {
+                const noteId = await saveCycleNote({
+                  sessionId: currentSession!.id,
+                  cycleId: currentCycle!.id,
+                  cycleIdx: currentCycle!.idx,
+                  noteType: kind,
+                  entryType: 'voice',
+                  text: transcript,
+                  timestamp,
+                });
+                
+                // Create complete entry for local state
+                const completeEntry: LogEntry = {
+                  id: noteId,
+                  sessionId: currentSession!.id,
+                  cycleId: currentCycle!.id,
+                  cycleIdx: currentCycle!.idx,
+                  noteType: kind,
+                  entryType: 'voice',
+                  text: transcript,
+                  timestamp,
+                  createdAt: timestamp, // Approximate since we don't get it back from save
+                };
+                
+                if (kind === 'work') {
+                  setWorkLog(prev => [completeEntry, ...prev]);
+                } else {
+                  setDistractionLog(prev => [completeEntry, ...prev]);
+                }
+              } catch (error) {
+                console.error('Failed to save cycle note:', error);
+                // Could show user notification here
+              }
             } else {
-              setDistractionLog(prev => [newEntry, ...prev]);
+              // Fallback for web - create a mock entry
+              const mockEntry: LogEntry = {
+                id: Math.random().toString(36).substring(2),
+                sessionId: 'mock-session',
+                cycleId: 'mock-cycle',
+                cycleIdx: 0,
+                noteType: kind,
+                entryType: 'voice',
+                text: transcript,
+                timestamp,
+                createdAt: timestamp,
+              };
+              
+              if (kind === 'work') {
+                setWorkLog(prev => [mockEntry, ...prev]);
+              } else {
+                setDistractionLog(prev => [mockEntry, ...prev]);
+              }
             }
 
             setRecordingState('complete');
@@ -163,35 +239,99 @@ export function TimerScreen() {
     }
   };
   
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (!newNote.trim()) return;
     
-    const newEntry: LogEntry = {
-      id: Math.random().toString(36).substring(2),
-      text: newNote.trim(),
-      timestamp: new Date(),
-      type: 'manual'
-    };
+    const timestamp = new Date();
     
-    if (activeTab === 'work') {
-      setWorkLog(prev => [newEntry, ...prev]);
+    if (isElectron() && currentSession && currentCycle) {
+      try {
+        const noteId = await saveCycleNote({
+          sessionId: currentSession.id,
+          cycleId: currentCycle.id,
+          cycleIdx: currentCycle.idx,
+          noteType: activeTab,
+          entryType: 'manual',
+          text: newNote.trim(),
+          timestamp,
+        });
+        
+        const completeEntry: LogEntry = {
+          id: noteId,
+          sessionId: currentSession.id,
+          cycleId: currentCycle.id,
+          cycleIdx: currentCycle.idx,
+          noteType: activeTab,
+          entryType: 'manual',
+          text: newNote.trim(),
+          timestamp,
+          createdAt: timestamp,
+        };
+        
+        if (activeTab === 'work') {
+          setWorkLog(prev => [completeEntry, ...prev]);
+        } else {
+          setDistractionLog(prev => [completeEntry, ...prev]);
+        }
+      } catch (error) {
+        console.error('Failed to save manual note:', error);
+      }
     } else {
-      setDistractionLog(prev => [newEntry, ...prev]);
+      // Fallback for web or missing session/cycle
+      const mockEntry: LogEntry = {
+        id: Math.random().toString(36).substring(2),
+        sessionId: 'mock-session',
+        cycleId: 'mock-cycle',
+        cycleIdx: 0,
+        noteType: activeTab,
+        entryType: 'manual',
+        text: newNote.trim(),
+        timestamp,
+        createdAt: timestamp,
+      };
+      
+      if (activeTab === 'work') {
+        setWorkLog(prev => [mockEntry, ...prev]);
+      } else {
+        setDistractionLog(prev => [mockEntry, ...prev]);
+      }
     }
     
     setNewNote('');
   };
   
-  const handleEditEntry = (entryId: string, newText: string) => {
-    if (activeTab === 'work') {
-      setWorkLog(prev => prev.map(entry => 
-        entry.id === entryId ? { ...entry, text: newText } : entry
-      ));
+  const handleEditEntry = async (entryId: string, newText: string) => {
+    if (isElectron()) {
+      try {
+        await updateCycleNote(entryId, newText);
+        
+        // Update local state
+        if (activeTab === 'work') {
+          setWorkLog(prev => prev.map(entry => 
+            entry.id === entryId ? { ...entry, text: newText } : entry
+          ));
+        } else {
+          setDistractionLog(prev => prev.map(entry => 
+            entry.id === entryId ? { ...entry, text: newText } : entry
+          ));
+        }
+      } catch (error) {
+        console.error('Failed to update note:', error);
+        // Could show user notification here
+      }
     } else {
-      setDistractionLog(prev => prev.map(entry => 
-        entry.id === entryId ? { ...entry, text: newText } : entry
-      ));
+      // Fallback for web
+      if (activeTab === 'work') {
+        setWorkLog(prev => prev.map(entry => 
+          entry.id === entryId ? { ...entry, text: newText } : entry
+        ));
+      } else {
+        setDistractionLog(prev => prev.map(entry => 
+          entry.id === entryId ? { ...entry, text: newText } : entry
+        ));
+      }
     }
+    
     setEditingEntry(null);
     setEditText('');
   };
@@ -241,7 +381,39 @@ export function TimerScreen() {
   };
   
   const currentCycleNumber = (currentCycle?.idx || 0) + 1;
-  const currentLog = activeTab === 'work' ? workLog : distractionLog;
+  
+  // Combine current cycle notes with other cycle notes, sorted chronologically
+  const getCombinedSessionNotes = (noteType: 'work' | 'distraction') => {
+    const currentNotes = noteType === 'work' ? workLog : distractionLog;
+    const otherNotes = noteType === 'work' ? sessionWorkNotesOtherCycles : sessionDistractionNotesOtherCycles;
+    
+    // Combine and sort by timestamp (newest first)
+    return [...currentNotes, ...otherNotes].sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  };
+
+  // Determine what to show based on current state
+  const getCurrentLog = () => {
+    if (showingSessionNotes) {
+      return getCombinedSessionNotes(activeTab);
+    } else {
+      // Show current cycle notes
+      return activeTab === 'work' ? workLog : distractionLog;
+    }
+  };
+  
+  const currentLog = getCurrentLog();
+  
+  // Reset to cycle view when switching tabs
+  const handleTabSwitch = (tab: 'work' | 'distraction') => {
+    setActiveTab(tab);
+    setShowingSessionNotes(false);
+  };
+  
+  const toggleSessionView = () => {
+    setShowingSessionNotes(!showingSessionNotes);
+  };
   
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-6">
@@ -251,9 +423,6 @@ export function TimerScreen() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Cycle {currentCycleNumber} in Progress
           </h1>
-          <p className="text-gray-600">
-            Focus on your task. You can pause or stop the timer at any time.
-          </p>
         </div>
         
         {/* Goal in a compact card */}
@@ -315,10 +484,10 @@ export function TimerScreen() {
             <div className="flex flex-col items-center gap-2">
               {getVoiceButtonContent(workRecordingState, 'work')}
               <span className="text-sm font-medium text-gray-700">
-                {workRecordingState === 'recording' ? 'Stop Work Note' : 
+                {workRecordingState === 'recording' ? 'Click to stop recording' : 
                  workRecordingState === 'processing' ? 'Processing...' :
                  workRecordingState === 'complete' ? 'Added!' :
-                 'Work Note'}
+                 'Record Work Note'}
               </span>
             </div>
           </button>
@@ -331,10 +500,10 @@ export function TimerScreen() {
             <div className="flex flex-col items-center gap-2">
               {getVoiceButtonContent(distractionRecordingState, 'distraction')}
               <span className="text-sm font-medium text-gray-700">
-                {distractionRecordingState === 'recording' ? 'Stop Distraction' : 
+                {distractionRecordingState === 'recording' ? 'Click to stop recording' : 
                  distractionRecordingState === 'processing' ? 'Processing...' :
                  distractionRecordingState === 'complete' ? 'Added!' :
-                 'Distraction Note'}
+                 'Record distractions'}
               </span>
             </div>
           </button>
@@ -343,33 +512,37 @@ export function TimerScreen() {
         {/* Logs section */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
           {/* Tab headers with better visual distinction */}
-          <div className="flex border-b border-gray-100">
-            <button
-              onClick={() => setActiveTab('work')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 relative ${
-                activeTab === 'work'
-                  ? 'text-[#482F60] bg-gray-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-25'
-              }`}
-            >
-              Work Log ({workLog.length})
-              {activeTab === 'work' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#482F60]" />
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('distraction')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 relative ${
-                activeTab === 'distraction'
-                  ? 'text-[#482F60] bg-gray-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-25'
-              }`}
-            >
-              Distraction Journal ({distractionLog.length})
-              {activeTab === 'distraction' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#482F60]" />
-              )}
-            </button>
+          <div className="border-b border-gray-100">
+            <div className="flex">
+              <button
+                onClick={() => handleTabSwitch('work')}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 relative ${
+                  activeTab === 'work'
+                    ? 'text-[#482F60] bg-gray-50'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-25'
+                }`}
+              >
+                Work Log ({showingSessionNotes ? getCombinedSessionNotes('work').length : workLog.length})
+                {activeTab === 'work' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#482F60]" />
+                )}
+              </button>
+              <button
+                onClick={() => handleTabSwitch('distraction')}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 relative ${
+                  activeTab === 'distraction'
+                    ? 'text-[#482F60] bg-gray-50'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-25'
+                }`}
+              >
+                Distraction Journal ({showingSessionNotes ? getCombinedSessionNotes('distraction').length : distractionLog.length})
+                {activeTab === 'distraction' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#482F60]" />
+                )}
+              </button>
+            </div>
+            
+
           </div>
           
           {/* Add note input */}
@@ -398,16 +571,30 @@ export function TimerScreen() {
             <div className="space-y-3">
               {currentLog.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  <p className="text-sm">No {activeTab} notes yet.</p>
-                  <p className="text-xs mt-1">Use the microphone above or type to add notes.</p>
+                  <p className="text-sm">
+                    {showingSessionNotes 
+                      ? `No ${activeTab} notes in this session yet.`
+                      : `No ${activeTab} notes yet.`
+                    }
+                  </p>
+                  {!showingSessionNotes && (
+                    <p className="text-xs mt-1">Use the microphone above or type to add notes.</p>
+                  )}
                 </div>
               ) : (
                 currentLog.map((entry) => (
                   <div key={entry.id} className={`flex gap-3 p-3 rounded-lg ${
-                    activeTab === 'work' ? 'bg-gray-50' : 'bg-red-50'
+                    showingSessionNotes && entry.cycleId === currentCycle?.id
+                      ? (activeTab === 'work' ? 'bg-blue-50 border border-blue-200' : 'bg-red-100 border border-red-200')
+                      : (activeTab === 'work' ? 'bg-gray-50' : 'bg-red-50')
                   }`}>
                     <div className="text-xs text-gray-500 font-mono mt-0.5 flex-shrink-0">
-                      {formatTime(entry.timestamp)}
+                      <div>{formatTime(entry.timestamp)}</div>
+                      {showingSessionNotes && (
+                        <div className="text-[10px] text-gray-400 mt-0.5">
+                          Cycle {entry.cycleIdx + 1}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1">
                       {editingEntry === entry.id ? (
@@ -455,6 +642,39 @@ export function TimerScreen() {
                 ))
               )}
             </div>
+            
+            {/* Show more button - centered at bottom */}
+            {(() => {
+              const otherCycleNotesForTab = activeTab === 'work' ? sessionWorkNotesOtherCycles : sessionDistractionNotesOtherCycles;
+              const additionalNotes = otherCycleNotesForTab.length;
+              
+              if (showingSessionNotes) {
+                // Show back button when viewing session notes
+                return (
+                  <div className="text-center pt-4 border-t border-gray-100 mt-4">
+                    <button
+                      onClick={toggleSessionView}
+                      className="text-sm text-[#482F60] hover:text-[#3d2651] font-medium transition-colors"
+                    >
+                      ← Back to Cycle {currentCycleNumber}
+                    </button>
+                  </div>
+                );
+              } else if (additionalNotes > 0) {
+                // Show "show more" button only if there are additional notes
+                return (
+                  <div className="text-center pt-4 border-t border-gray-100 mt-4">
+                    <button
+                      onClick={toggleSessionView}
+                      className="text-sm text-[#482F60] hover:text-[#3d2651] font-medium transition-colors"
+                    >
+                      Show more from this session ({additionalNotes})
+                    </button>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
         </div>
       </div>

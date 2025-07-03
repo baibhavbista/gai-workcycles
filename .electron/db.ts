@@ -410,4 +410,113 @@ export function saveSessionReview(id: string, payload: SessionReviewPayload) {
     succ: payload.successes,
     take: payload.takeaways,
   });
-} 
+}
+
+// -------- Cycle Notes ---------
+export interface CycleNotePayload {
+  sessionId: string;
+  cycleId: string;
+  cycleIdx: number;
+  noteType: 'work' | 'distraction';
+  entryType: 'voice' | 'manual';
+  text: string;
+  timestamp: Date;
+}
+
+export interface CycleNote {
+  id: string;
+  sessionId: string;
+  cycleId: string;
+  cycleIdx: number;
+  noteType: 'work' | 'distraction';
+  entryType: 'voice' | 'manual';
+  text: string;
+  timestamp: Date;
+  createdAt: Date;
+}
+
+const insertCycleNoteStmt = db.prepare(`
+  INSERT INTO cycle_notes (
+    id, session_id, cycle_id, cycle_idx, note_type, entry_type, text, timestamp
+  ) VALUES (
+    @id, @session_id, @cycle_id, @cycle_idx, @note_type, @entry_type, @text, @timestamp
+  )
+`);
+
+const getCycleNotesStmt = db.prepare(`
+  SELECT * FROM cycle_notes 
+  WHERE session_id = ? AND cycle_id = ? 
+  ORDER BY timestamp ASC
+`);
+
+const getSessionNotesStmt = db.prepare(`
+  SELECT * FROM cycle_notes 
+  WHERE session_id = ? 
+  ORDER BY cycle_idx ASC, timestamp ASC
+`);
+
+const deleteCycleNoteStmt = db.prepare(`
+  DELETE FROM cycle_notes WHERE id = ?
+`);
+
+const updateCycleNoteStmt = db.prepare(`
+  UPDATE cycle_notes SET 
+    text = @text
+  WHERE id = @id
+`);
+
+export function saveCycleNote(payload: CycleNotePayload): string {
+  const id = uuid();
+  insertCycleNoteStmt.run({
+    id,
+    session_id: payload.sessionId,
+    cycle_id: payload.cycleId,
+    cycle_idx: payload.cycleIdx,
+    note_type: payload.noteType,
+    entry_type: payload.entryType,
+    text: payload.text,
+    timestamp: payload.timestamp.toISOString(),
+  });
+  return id;
+}
+
+export function getCycleNotes(sessionId: string, cycleId: string): CycleNote[] {
+  const rows = getCycleNotesStmt.all(sessionId, cycleId);
+  return rows.map((row: any) => ({
+    id: row.id,
+    sessionId: row.session_id,
+    cycleId: row.cycle_id,
+    cycleIdx: row.cycle_idx,
+    noteType: row.note_type,
+    entryType: row.entry_type,
+    text: row.text,
+    timestamp: new Date(row.timestamp),
+    createdAt: new Date(row.created_at),
+  }));
+}
+
+export function getSessionNotes(sessionId: string): CycleNote[] {
+  const rows = getSessionNotesStmt.all(sessionId);
+  return rows.map((row: any) => ({
+    id: row.id,
+    sessionId: row.session_id,
+    cycleId: row.cycle_id,
+    cycleIdx: row.cycle_idx,
+    noteType: row.note_type,
+    entryType: row.entry_type,
+    text: row.text,
+    timestamp: new Date(row.timestamp),
+    createdAt: new Date(row.created_at),
+  }));
+}
+
+export function deleteCycleNote(noteId: string): void {
+  deleteCycleNoteStmt.run(noteId);
+}
+
+export function updateCycleNote(noteId: string, text: string): void {
+  updateCycleNoteStmt.run({
+    id: noteId,
+    text,
+  });
+}

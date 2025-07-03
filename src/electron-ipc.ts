@@ -83,4 +83,58 @@ export const saveSessionReview = (sessionId: string, review: any) => {
   const api = getApi();
   if (!api) throw new Error('Electron API not available');
   return api.saveSessionReview(sessionId, review) as Promise<{ ok: boolean }>;
+};
+
+// -------- Cycle Notes --------
+
+export interface CycleNotePayload {
+  sessionId: string;
+  cycleId: string;
+  cycleIdx: number;
+  noteType: 'work' | 'distraction';
+  entryType: 'voice' | 'manual';
+  text: string;
+  timestamp: Date;
+}
+
+export interface CycleNote {
+  id: string;
+  sessionId: string;
+  cycleId: string;
+  cycleIdx: number;
+  noteType: 'work' | 'distraction';
+  entryType: 'voice' | 'manual';
+  text: string;
+  timestamp: Date;
+  createdAt: Date;
+}
+
+export const saveCycleNote = (payload: CycleNotePayload) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.saveCycleNote(payload) as Promise<string>;
+};
+
+export const getCycleNotes = (sessionId: string, cycleId: string) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.getCycleNotes(sessionId, cycleId) as Promise<CycleNote[]>;
+};
+
+export const getSessionNotes = (sessionId: string) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.getSessionNotes(sessionId) as Promise<CycleNote[]>;
+};
+
+export const deleteCycleNote = (noteId: string) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.deleteCycleNote(noteId) as Promise<{ ok: boolean }>;
+};
+
+export const updateCycleNote = (noteId: string, text: string) => {
+  const api = getApi();
+  if (!api) throw new Error('Electron API not available');
+  return api.updateCycleNote(noteId, text) as Promise<{ ok: boolean }>;
 }; 

@@ -55,6 +55,25 @@ CREATE TABLE IF NOT EXISTS voice_notes (
   audio_path TEXT
 );
 
+-- cycle notes table (work/distraction notes during cycles)
+CREATE TABLE IF NOT EXISTS cycle_notes (
+  id TEXT PRIMARY KEY,                    -- UUID
+  session_id TEXT NOT NULL,               -- Links to sessions table
+  cycle_id TEXT NOT NULL,                 -- Links to cycles table  
+  cycle_idx INTEGER NOT NULL,             -- For easy querying without joins
+  note_type TEXT NOT NULL CHECK(note_type IN ('work', 'distraction')), -- work or distraction
+  entry_type TEXT NOT NULL CHECK(entry_type IN ('voice', 'manual')),   -- voice or manual
+  text TEXT NOT NULL,                     -- The actual note content
+  timestamp DATETIME NOT NULL,            -- When the note was created
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- When row was inserted
+  FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+  FOREIGN KEY(cycle_id) REFERENCES cycles(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_cycle_notes_session ON cycle_notes(session_id);
+CREATE INDEX IF NOT EXISTS idx_cycle_notes_cycle ON cycle_notes(cycle_id);
+CREATE INDEX IF NOT EXISTS idx_cycle_notes_type ON cycle_notes(note_type);
+
 -- application settings (single row)
 CREATE TABLE IF NOT EXISTS app_settings (
   id TEXT PRIMARY KEY,                -- always 'default'
