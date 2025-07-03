@@ -1,4 +1,4 @@
-import { app, screen, BrowserWindow, Tray, Menu, globalShortcut, nativeImage, ipcMain, safeStorage } from 'electron';
+import { app, screen, BrowserWindow, Tray, Menu, globalShortcut, nativeImage, ipcMain, safeStorage, session } from 'electron';
 import path from 'node:path';
 import {
   insertSession,
@@ -43,6 +43,16 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // Set up permission handler for media access
+  win.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media'];
+    if (allowedPermissions.includes(permission)) {
+      callback(true);
+    } else {
+      callback(false);
+    }
   });
 
   const isDev = process.env.NODE_ENV === 'dev';

@@ -3,6 +3,7 @@ import { ArrowRight, Target, ChevronRight, ChevronDown } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import type { SessionIntentions } from '../types';
+import type { QuestionSpec } from '../client-side-ai';
 import { BackButton } from '../components/BackButton';
 
 export function SessionIntentionsScreen() {
@@ -21,19 +22,61 @@ export function SessionIntentionsScreen() {
   }));
   const [showSettings, setShowSettings] = useState(false);
   
+  // Schema for auto-filling via VoiceRecorder
+  const formSchema: QuestionSpec[] = [
+    { key: 'objective',        question: 'What am I trying to accomplish?' },
+    { key: 'importance',       question: 'Why is this important and valuable?' },
+    { key: 'definitionOfDone', question: 'How will I know this is complete?' },
+    { key: 'hazards',          question: 'Any risks / hazards? (Potential distractions, procrastination, etc.)' },
+    { key: 'miscNotes',        question: 'Anything else noteworthy?'},
+    { key: 'concrete',         question: 'Is this concrete or measurable (rather than subjective / ambiguous)?', type: 'boolean' },
+  ];
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!intentions.objective.trim()) return;
     startNewSession(intentions);
   };
   
-  const handleVoiceComplete = (transcript: string) => {
-    // In a real implementation, this would be processed by AI to fill the form
-    // For now, we'll just put it in the first field as an example
-    setIntentions(prev => ({ 
-      ...prev, 
-      objective: prev.objective + (prev.objective ? '\n\n' : '') + transcript 
-    }));
+  const handleVoiceComplete = (transcript: string, filled?: Record<string, string>) => {
+    console.log('transcript', transcript);
+    console.log('filled', filled);
+
+    if (filled) {
+      type StrKeys = {
+        [K in keyof SessionIntentions]: SessionIntentions[K] extends string ? K : never;
+      }[keyof SessionIntentions];
+
+      setIntentions(prev => {
+        const merged = { ...prev };
+        for (const [key, value] of Object.entries(filled)) {
+          // if value is null or empty string, skip
+          if (value === null || value === '') continue;
+
+          // locate schema definition for this key
+          const spec = formSchema.find((it) => (Array.isArray(it) ? it[0] : it.key) === key) as any;
+
+          const shouldReplace = spec && (spec.enum || spec.type === 'boolean');
+
+          if (shouldReplace) {
+            (merged as any)[key] = value;
+          } else {
+            const strKey = key as StrKeys; // only string fields
+            const prevValue = (merged[strKey] as string) || '';
+            merged[strKey] = prevValue.trim() ? `${prevValue}\n${value}` : value;
+          }
+        }
+        return merged;
+      });
+    } else {
+      // Fallback: append transcript to objective field
+      setIntentions(prev => ({
+        ...prev,
+        objective: prev.objective + (prev.objective ? '\n\n' : '') + transcript
+      }));
+    }
+
+    console.log('new intentions', intentions);
   };
   
   const isValid = intentions.objective.trim().length > 0;
@@ -60,7 +103,7 @@ export function SessionIntentionsScreen() {
             <Target className="w-5 h-5 text-[#482F60]" />
             <h1 className="text-xl font-bold text-gray-900">Session Prep</h1>
           </div>
-          <VoiceRecorder onComplete={handleVoiceComplete} />
+          <VoiceRecorder formSchema={formSchema} onComplete={handleVoiceComplete} />
         </div>
         
         <p className="text-gray-600 text-center mb-4 text-sm">
