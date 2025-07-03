@@ -189,3 +189,41 @@ export async function autoFillForm(
   // If we reach here both attempts failed.
   throw new Error("Failed to obtain valid JSON from OpenAI after 2 attempts");
 } 
+
+export const mergeDataOnVoiceComplete = (setterFn: (arg0: { (prev: any): any; (prev: any): any; }) => void, formSchema: QuestionSpec[], transcript: string, filled?: Record<string, string>) => {
+  console.log('transcript', transcript);
+  console.log('filled', filled);
+
+  if (filled) {
+    setterFn(prev => {
+      const merged = { ...prev };
+      for (const [key, value] of Object.entries(filled)) {
+        // if value is null or empty string, skip
+        if (value === null || value === '') continue;
+        if (typeof key !== 'string') continue;
+
+        // locate schema definition for this key
+        const spec = formSchema.find((it) => (Array.isArray(it) ? it[0] : it.key) === key) as any;
+        if (!spec) continue;
+
+        const prevValue = (merged as any)[key];
+
+        const shouldAppend = (!(spec.enum || spec.type === 'boolean')) && typeof prevValue === 'string' && prevValue.trim().length > 0;
+
+        const newValue = shouldAppend ? `${prevValue.trim()}\n${value}` : value;
+        (merged as any)[key] = newValue;
+      }
+      return merged;
+    });
+  } else {
+    // Fallback: append transcript to first field
+    const firstKey = formSchema[0].key;
+    const spec = formSchema.find((it) => (Array.isArray(it) ? it[0] : it.key) === firstKey) as any;
+    if (spec && !(spec.enum || spec.type === 'boolean')){
+      setterFn(prev => ({
+        ...prev,
+        [firstKey]: (prev[firstKey] ? (prev[firstKey] + '\n\n' + transcript) : transcript)
+      }));
+    }
+  }
+};

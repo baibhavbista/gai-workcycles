@@ -5,6 +5,15 @@ import { VoiceRecorder } from '../components/VoiceRecorder';
 import { LabelledTextArea } from '../components/LabelledTextArea';
 import type { CycleStatus } from '../types';
 import { BackButton } from '../components/BackButton';
+import { mergeDataOnVoiceComplete, type QuestionSpec } from '../client-side-ai';
+
+// Schema for auto-filling via VoiceRecorder
+const formSchema: QuestionSpec[] = [
+  { key: 'status',        question: 'Did I complete the cycle\'s target?', enum: ['hit', 'partial', 'miss'] },
+  { key: 'noteworthy',    question: 'Anything noteworthy?' },
+  { key: 'distractions',  question: 'Any distractions?' },
+  { key: 'improvement',   question: 'Things to improve for next cycle?' },
+];
 
 export function CycleReflectionScreen() {
   const { currentCycle, currentSession, completeCycle } = useWorkCyclesStore();
@@ -18,14 +27,11 @@ export function CycleReflectionScreen() {
   const handleSubmit = (action: 'break' | 'finish') => {
     completeCycle(reflection);
   };
-  
-  const handleVoiceComplete = (transcript: string) => {
-    // In a real implementation, this would be processed by AI to fill the form
-    // For now, we'll just put it in the noteworthy field as an example
-    setReflection(prev => ({ 
-      ...prev, 
-      noteworthy: prev.noteworthy + (prev.noteworthy ? '\n\n' : '') + transcript 
-    }));
+
+
+  const handleVoiceComplete = (transcript: string, filled?: Record<string, string>) => {
+    mergeDataOnVoiceComplete(setReflection, formSchema, transcript, filled);
+    console.log('new reflection:', reflection);
   };
   
   const currentCycleNumber = (currentCycle?.idx || 0) + 1;
@@ -46,7 +52,7 @@ export function CycleReflectionScreen() {
               Take a moment to reflect on what happened during this cycle.
             </p>
           </div>
-          <VoiceRecorder onComplete={handleVoiceComplete} />
+          <VoiceRecorder formSchema={formSchema} onComplete={handleVoiceComplete} />
         </div>
         
         {/* Goal reminder */}

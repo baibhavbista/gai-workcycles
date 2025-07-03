@@ -4,8 +4,25 @@ import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import { LabelledTextArea } from '../components/LabelledTextArea';
 import type { SessionIntentions } from '../types';
-import type { QuestionSpec } from '../client-side-ai';
+import { type QuestionSpec, mergeDataOnVoiceComplete } from '../client-side-ai';
 import { BackButton } from '../components/BackButton';
+
+// Schema for auto-filling via VoiceRecorder
+// TODO: use this value in the UI and also add a metadata.label (also do this in the other screens)
+const formSchema: QuestionSpec[] = [
+  { key: 'objective',        question: 'What am I trying to accomplish?' },
+  { key: 'importance',       question: 'Why is this important and valuable?' },
+  { key: 'definitionOfDone', question: 'How will I know this is complete?' },
+  { key: 'hazards',          question: 'Any risks / hazards? (Potential distractions, procrastination, etc.)' },
+  { key: 'miscNotes',        question: 'Anything else noteworthy?'},
+  { key: 'concrete',         question: 'Is this concrete or measurable? (rather than subjective / ambiguous)', type: 'boolean' },
+];
+
+// map from key->question
+const keyToSpec = formSchema.reduce((acc, spec) => {
+  acc[spec.key] = spec;
+  return acc;
+}, {} as Record<string, QuestionSpec>);
 
 export function SessionIntentionsScreen() {
   const { setScreen, startNewSession, settings } = useWorkCyclesStore();
@@ -22,22 +39,7 @@ export function SessionIntentionsScreen() {
     miscNotes: '',
   }));
   const [showSettings, setShowSettings] = useState(false);
-  
-  // Schema for auto-filling via VoiceRecorder
-  const formSchema: QuestionSpec[] = [
-    { key: 'objective',        question: 'What am I trying to accomplish?' },
-    { key: 'importance',       question: 'Why is this important and valuable?' },
-    { key: 'definitionOfDone', question: 'How will I know this is complete?' },
-    { key: 'hazards',          question: 'Any risks / hazards? (Potential distractions, procrastination, etc.)' },
-    { key: 'miscNotes',        question: 'Anything else noteworthy?'},
-    { key: 'concrete',         question: 'Is this concrete or measurable? (rather than subjective / ambiguous)', type: 'boolean' },
-  ];
 
-  // map from key->question
-  const keyToSpec = formSchema.reduce((acc, spec) => {
-    acc[spec.key] = spec;
-    return acc;
-  }, {} as Record<string, QuestionSpec>);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,43 +48,7 @@ export function SessionIntentionsScreen() {
   };
   
   const handleVoiceComplete = (transcript: string, filled?: Record<string, string>) => {
-    console.log('transcript', transcript);
-    console.log('filled', filled);
-
-    if (filled) {
-      type StrKeys = {
-        [K in keyof SessionIntentions]: SessionIntentions[K] extends string ? K : never;
-      }[keyof SessionIntentions];
-
-      setIntentions(prev => {
-        const merged = { ...prev };
-        for (const [key, value] of Object.entries(filled)) {
-          // if value is null or empty string, skip
-          if (value === null || value === '') continue;
-
-          // locate schema definition for this key
-          const spec = formSchema.find((it) => (Array.isArray(it) ? it[0] : it.key) === key) as any;
-
-          const shouldReplace = spec && (spec.enum || spec.type === 'boolean');
-
-          if (shouldReplace) {
-            (merged as any)[key] = value;
-          } else {
-            const strKey = key as StrKeys; // only string fields
-            const prevValue = (merged[strKey] as string) || '';
-            merged[strKey] = prevValue.trim() ? `${prevValue}\n${value}` : value;
-          }
-        }
-        return merged;
-      });
-    } else {
-      // Fallback: append transcript to objective field
-      setIntentions(prev => ({
-        ...prev,
-        objective: prev.objective + (prev.objective ? '\n\n' : '') + transcript
-      }));
-    }
-
+    mergeDataOnVoiceComplete(setIntentions, formSchema, transcript, filled);
     console.log('new intentions', intentions);
   };
   

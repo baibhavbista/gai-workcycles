@@ -5,6 +5,16 @@ import { VoiceRecorder } from '../components/VoiceRecorder';
 import { BackButton } from '../components/BackButton';
 import { isElectron, saveSessionReview } from '../electron-ipc';
 import { LabelledTextArea } from '../components/LabelledTextArea';
+import { mergeDataOnVoiceComplete, type QuestionSpec } from '../client-side-ai';
+
+// Schema for auto-filling via VoiceRecorder
+const formSchema: QuestionSpec[] = [
+  { key: 'accomplishments', question: 'What did I get done in this session?' },
+  { key: 'comparison',      question: 'How did this compare to my normal work output?' },
+  { key: 'obstacles',       question: 'Did I get bogged down? Where?' },
+  { key: 'successes',       question: 'What went well? How can I replicate this in the future?' },
+  { key: 'takeaways',       question: 'Any other takeaways? Lessons to share with others?' },
+];
 
 export function SessionReviewScreen() {
   const { currentSession, completeSession } = useWorkCyclesStore();
@@ -22,14 +32,10 @@ export function SessionReviewScreen() {
     }
     completeSession();
   };
-  
-  const handleVoiceComplete = (transcript: string) => {
-    // In a real implementation, this would be processed by AI to fill the form
-    // For now, we'll just put it in the accomplishments field as an example
-    setReview(prev => ({ 
-      ...prev, 
-      accomplishments: prev.accomplishments + (prev.accomplishments ? '\n\n' : '') + transcript 
-    }));
+
+  const handleVoiceComplete = (transcript: string, filled?: Record<string, string>) => {
+    mergeDataOnVoiceComplete(setReview, formSchema, transcript, filled);
+    console.log('new review:', review);
   };
   
   if (!currentSession) return null;
@@ -49,7 +55,7 @@ export function SessionReviewScreen() {
               Reflect on your entire session to extract insights and improve future performance.
             </p>
           </div>
-          <VoiceRecorder onComplete={handleVoiceComplete} />
+          <VoiceRecorder formSchema={formSchema} onComplete={handleVoiceComplete} />
         </div>
         
         {/* Review form */}

@@ -5,6 +5,16 @@ import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import { LabelledTextArea } from '../components/LabelledTextArea';
 import type { CycleData, EnergyLevel, MoraleLevel } from '../types';
+import { mergeDataOnVoiceComplete, type QuestionSpec } from '../client-side-ai';
+
+// Schema for auto-filling via VoiceRecorder
+const formSchema: QuestionSpec[] = [
+  { key: 'goal',        question: 'What am I trying to accomplish this cycle?' },
+  { key: 'firstStep',   question: 'How will I get started?' },
+  { key: 'hazards',     question: 'Any hazards present?' },
+  { key: 'energy',      question: 'What is my energy level?', enum: ['High', 'Medium', 'Low'] },
+  { key: 'morale',      question: 'What is my morale level?', enum: ['High', 'Medium', 'Low'] },
+];
 
 export function PreCycleScreen() {
   const { currentSession, startCycle } = useWorkCyclesStore();
@@ -24,14 +34,11 @@ export function PreCycleScreen() {
     if (!cycleData.goal.trim() || !cycleData.energy || !cycleData.morale) return;
     startCycle(cycleData);
   };
-  
-  const handleVoiceComplete = (transcript: string) => {
-    // In a real implementation, this would be processed by AI to fill the form
-    // For now, we'll just put it in the goal field as an example
-    setCycleData(prev => ({ 
-      ...prev, 
-      goal: prev.goal + (prev.goal ? '\n\n' : '') + transcript 
-    }));
+
+
+  const handleVoiceComplete = (transcript: string, filled?: Record<string, string>) => {
+    mergeDataOnVoiceComplete(setCycleData, formSchema, transcript, filled);
+    console.log('new cycle data', cycleData);
   };
   
   const isValid = cycleData.goal.trim().length > 0 && cycleData.energy && cycleData.morale;
@@ -52,7 +59,7 @@ export function PreCycleScreen() {
               Take a moment to plan your approach for this {currentSession?.intentions.workMinutes || 30}-minute cycle.
             </p>
           </div>
-          <VoiceRecorder onComplete={handleVoiceComplete} />
+          <VoiceRecorder formSchema={formSchema} onComplete={handleVoiceComplete} />
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
