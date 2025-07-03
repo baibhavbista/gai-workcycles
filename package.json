@@ -17,11 +17,13 @@
   },
   "dependencies": {
     "@lancedb/lancedb": "^0.21.0",
+    "@langchain/langgraph": "^0.3.6",
     "@tanstack/react-table": "^8.10.7",
     "@xenova/transformers": "^2.17.2",
     "better-sqlite3": "^12.2.0",
     "electron": "^27.0.0",
     "lucide-react": "^0.344.0",
+    "openai": "^5.8.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "uuid": "^11.1.0",

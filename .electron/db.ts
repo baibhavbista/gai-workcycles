@@ -3,6 +3,12 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { app } from 'electron';
 import { v4 as uuid } from 'uuid';
+import { 
+  createFieldEmbedJobs, 
+  createCycleEmbedJob, 
+  createSessionEmbedJob,
+  performJobCleanup
+} from './embeddings.js';
 
 // ---------- database bootstrapping ----------
 // Ensure the app name is set BEFORE we resolve userData path so dev runs use
@@ -257,10 +263,181 @@ const statusMap = { miss: 0, partial: 1, hit: 2 } as const;
 const energyFromInt = ['Low', 'Medium', 'High'] as const;
 const statusFromInt = ['miss', 'partial', 'hit'] as const;
 
+// --- embedding job helpers ---
+// Safe job creation that won't break if embeddings are disabled
+function safeCreateFieldEmbedJobs(
+  tableName: 'sessions' | 'cycles',
+  record: any,
+  sessionId: string,
+  cycleId?: string
+): void {
+  try {
+    const settings = getSettings();
+    if (!settings.aiEnabled) return;
+    
+    createFieldEmbedJobs(tableName, record, sessionId, cycleId);
+  } catch (error) {
+    console.error('Failed to create field embedding jobs:', error);
+  }
+}
+
+function safeCreateCycleEmbedJob(cycleData: any): void {
+  try {
+    const settings = getSettings();
+    if (!settings.aiEnabled) return;
+    
+    createCycleEmbedJob(cycleData);
+  } catch (error) {
+    console.error('Failed to create cycle embedding job:', error);
+  }
+}
+
+function safeCreateSessionEmbedJob(sessionData: any): void {
+  try {
+    const settings = getSettings();
+    if (!settings.aiEnabled) return;
+    
+    createSessionEmbedJob(sessionData);
+  } catch (error) {
+    console.error('Failed to create session embedding job:', error);
+  }
+}
+
+// Periodic cleanup call (can be called from main process)
+export function performPeriodicCleanup(): void {
+  try {
+    const result = performJobCleanup();
+    if (result.completedCleaned > 0 || result.errorsCleaned > 0) {
+      console.log(`Embedding job cleanup: ${result.completedCleaned} completed, ${result.errorsCleaned} errors removed`);
+    }
+  } catch (error) {
+    console.error('Failed to perform embedding job cleanup:', error);
+  }
+}
+
+// Bulk job creation for existing data (useful when AI is first enabled)
+export function createEmbeddingJobsForExistingData(limit: number = 100): {
+  sessionsProcessed: number;
+  cyclesProcessed: number;
+  jobsCreated: number;
+} {
+  const settings = getSettings();
+  if (!settings.aiEnabled) {
+    return { sessionsProcessed: 0, cyclesProcessed: 0, jobsCreated: 0 };
+  }
+  
+  let jobsCreated = 0;
+  let sessionsProcessed = 0;
+  let cyclesProcessed = 0;
+  
+  try {
+    // Get recent sessions that might not have embedding jobs yet
+    const sessions = db.prepare(`
+      SELECT * FROM sessions 
+      WHERE completed = 1 
+      ORDER BY started_at DESC 
+      LIMIT ?
+    `).all(limit) as any[];
+    
+    for (const session of sessions) {
+      // Create field-level jobs for session planning fields
+      const planningRecord = {
+        id: session.id,
+        plan_objective: session.plan_objective,
+        plan_importance: session.plan_importance,
+        plan_done_definition: session.plan_done_definition,
+        plan_hazards: session.plan_hazards,
+        plan_misc_notes: session.plan_misc_notes
+      };
+      
+             safeCreateFieldEmbedJobs('sessions', planningRecord, session.id);
+      
+      // Create field-level jobs for session review fields
+      if (session.review_accomplishments || session.review_comparison || 
+          session.review_obstacles || session.review_successes || session.review_takeaways) {
+        const reviewRecord = {
+          id: session.id,
+          review_accomplishments: session.review_accomplishments,
+          review_comparison: session.review_comparison,
+          review_obstacles: session.review_obstacles,
+          review_successes: session.review_successes,
+          review_takeaways: session.review_takeaways
+        };
+        
+        safeCreateFieldEmbedJobs('sessions', reviewRecord, session.id);
+        
+        // Create session-level job
+        safeCreateSessionEmbedJob(session);
+      }
+      
+      sessionsProcessed++;
+    }
+    
+    // Get recent cycles
+    const cycles = db.prepare(`
+      SELECT * FROM cycles 
+      WHERE ended_at IS NOT NULL 
+      ORDER BY started_at DESC 
+      LIMIT ?
+    `).all(limit) as any[];
+    
+    for (const cycle of cycles) {
+      // Create field-level jobs for cycle planning fields
+      const planningRecord = {
+        id: cycle.id,
+        session_id: cycle.session_id,
+        plan_goal: cycle.plan_goal,
+        plan_first_step: cycle.plan_first_step,
+        plan_hazards_cycle: cycle.plan_hazards_cycle
+      };
+      
+      safeCreateFieldEmbedJobs('cycles', planningRecord, cycle.session_id, cycle.id);
+      
+      // Create field-level jobs for cycle review fields
+      if (cycle.review_noteworthy || cycle.review_distractions || cycle.review_improvement) {
+        const reviewRecord = {
+          id: cycle.id,
+          session_id: cycle.session_id,
+          review_noteworthy: cycle.review_noteworthy,
+          review_distractions: cycle.review_distractions,
+          review_improvement: cycle.review_improvement
+        };
+        
+        safeCreateFieldEmbedJobs('cycles', reviewRecord, cycle.session_id, cycle.id);
+        
+        // Create cycle-level job
+        safeCreateCycleEmbedJob(cycle);
+      }
+      
+      cyclesProcessed++;
+    }
+    
+    console.log(`Bulk job creation completed: ${sessionsProcessed} sessions, ${cyclesProcessed} cycles processed`);
+    
+  } catch (error) {
+    console.error('Failed to create bulk embedding jobs:', error);
+  }
+  
+  return { sessionsProcessed, cyclesProcessed, jobsCreated };
+}
+
 // ---------- API functions ----------
 export function insertSession(payload: SessionPayload): string {
   const id = uuid();
   insertSessionStmt.run({ id, ...payload, concrete: payload.concrete ? 1 : 0 });
+  
+  // Create embedding jobs for session planning fields
+  const sessionRecord = {
+    id,
+    plan_objective: payload.objective,
+    plan_importance: payload.importance,
+    plan_done_definition: payload.definition_of_done,
+    plan_hazards: payload.hazards,
+    plan_misc_notes: payload.misc_notes
+  };
+  
+  safeCreateFieldEmbedJobs('sessions', sessionRecord, id);
+  
   return id;
 }
 
@@ -276,6 +453,18 @@ export function insertCycle(payload: CycleStartPayload): string {
     energy: energyMap[payload.energy],
     morale: energyMap[payload.morale],
   });
+  
+  // Create embedding jobs for cycle planning fields
+  const cycleRecord = {
+    id,
+    session_id: payload.sessionId,
+    plan_goal: payload.goal,
+    plan_first_step: payload.first_step,
+    plan_hazards_cycle: payload.hazards
+  };
+  
+  safeCreateFieldEmbedJobs('cycles', cycleRecord, payload.sessionId, id);
+  
   return id;
 }
 
@@ -293,6 +482,34 @@ export function finishCycle(payload: CycleFinishPayload) {
 
   if (payload.shouldCompleteSession) {
     markSessionCompletedStmt.run({ id: payload.sessionId });
+  }
+  
+  // Create embedding jobs for cycle review fields
+  const cycleReviewRecord = {
+    id: payload.cycleId,
+    session_id: payload.sessionId,
+    review_noteworthy: payload.noteworthy,
+    review_distractions: payload.distractions,
+    review_improvement: payload.improvement
+  };
+  
+  safeCreateFieldEmbedJobs('cycles', cycleReviewRecord, payload.sessionId, payload.cycleId);
+  
+  // Create cycle-level embedding job with complete cycle data
+  try {
+    const settings = getSettings();
+    if (settings.aiEnabled) {
+      // Get the complete cycle data for the cycle-level embedding
+      const fullCycleData = db.prepare(`
+        SELECT * FROM cycles WHERE id = ?
+      `).get(payload.cycleId) as any;
+      
+      if (fullCycleData) {
+        safeCreateCycleEmbedJob(fullCycleData);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to create cycle-level embedding job:', error);
   }
 }
 
@@ -410,6 +627,35 @@ export function saveSessionReview(id: string, payload: SessionReviewPayload) {
     succ: payload.successes,
     take: payload.takeaways,
   });
+  
+  // Create embedding jobs for session review fields
+  const sessionReviewRecord = {
+    id,
+    review_accomplishments: payload.accomplishments,
+    review_comparison: payload.comparison,
+    review_obstacles: payload.obstacles,
+    review_successes: payload.successes,
+    review_takeaways: payload.takeaways
+  };
+  
+  safeCreateFieldEmbedJobs('sessions', sessionReviewRecord, id);
+  
+  // Create session-level embedding job with complete session data
+  try {
+    const settings = getSettings();
+    if (settings.aiEnabled) {
+      // Get the complete session data for the session-level embedding
+      const fullSessionData = db.prepare(`
+        SELECT * FROM sessions WHERE id = ?
+      `).get(id) as any;
+      
+      if (fullSessionData) {
+        safeCreateSessionEmbedJob(fullSessionData);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to create session-level embedding job:', error);
+  }
 }
 
 // -------- Cycle Notes ---------

@@ -90,4 +90,27 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 
 -- ensure row exists
-INSERT OR IGNORE INTO app_settings (id) VALUES ('default'); 
+INSERT OR IGNORE INTO app_settings (id) VALUES ('default');
+
+-- embedding jobs queue for offline processing
+CREATE TABLE IF NOT EXISTS embed_jobs (
+  id TEXT PRIMARY KEY,                -- UUID
+  level TEXT NOT NULL CHECK(level IN ('field', 'cycle', 'session')),
+  session_id TEXT NOT NULL,
+  cycle_id TEXT,                      -- NULL for sessions
+  table_name TEXT NOT NULL,           -- 'sessions' or 'cycles'
+  row_id TEXT NOT NULL,               -- session.id or cycle.id
+  column_name TEXT,                   -- field column name (NULL for cycle/session)
+  field_label TEXT,                   -- human-readable question label
+  text TEXT NOT NULL,                 -- text to embed
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'processing', 'done', 'error')),
+  error_message TEXT,                 -- error details if status = 'error'
+  version INTEGER NOT NULL DEFAULT 1, -- for schema migrations
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  processed_at DATETIME,
+  FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_embed_jobs_status ON embed_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_embed_jobs_level ON embed_jobs(level);
+CREATE INDEX IF NOT EXISTS idx_embed_jobs_session ON embed_jobs(session_id); 
