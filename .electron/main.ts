@@ -24,7 +24,14 @@ import {
   updateCycleNote,
   CycleNotePayload,
 } from './db';
-import { setupVectorTable, indexCycleEmbedding, searchSimilar } from './vector';
+import { embeddingManager } from './embedding-manager.js';
+import { 
+  searchEmbeddings, 
+  cascadingSearch, 
+  getJobQueueStatus,
+  getJobStatistics
+} from './embeddings.js';
+import { createEmbeddingJobsForExistingData } from './db.js';
 
 // NOTE: This is an early scaffold. Additional tray, global shortcuts, IPC, and
 // database logic will be added in subsequent phases.
@@ -195,7 +202,27 @@ function registerGlobalHotkey(accelerator: string) {
 }
 
 app.whenReady().then(async () => {
-  await setupVectorTable();
+  // Initialize the embedding system
+  try {
+    console.log('Starting WorkCycles embedding system...');
+    
+    // Start the background embedding processor
+    embeddingManager.startProcessing();
+    
+    // Check if we should backfill existing data when AI is first enabled
+    const settings = getSettings();
+    if (settings.aiEnabled) {
+      console.log('AI enabled - checking for existing data to process...');
+      setTimeout(() => {
+        embeddingManager.backfillExistingData(50);
+      }, 5000); // Wait 5 seconds after app start
+    }
+    
+    console.log('Embedding system initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize embedding system:', error);
+  }
+  
   createWindow();
   
   // disabling tray for MVP
@@ -233,6 +260,15 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   // Unregister all shortcuts.
   globalShortcut.unregisterAll();
+  
+  // Gracefully shutdown the embedding system
+  try {
+    console.log('Shutting down embedding system...');
+    embeddingManager.shutdown();
+    console.log('Embedding system shutdown complete');
+  } catch (error) {
+    console.error('Error during embedding system shutdown:', error);
+  }
 });
 
 // ---------- IPC handlers ----------
@@ -243,13 +279,8 @@ ipcMain.handle('wc:session-create', (_, payload: SessionPayload) => {
 
 ipcMain.handle('wc:cycle-start', async (_, payload: CycleStartPayload) => {
   const id = insertCycle(payload);
-  // Fire and forget embedding indexing
-  indexCycleEmbedding({
-    cycleId: id,
-    text: payload.goal,
-    energy: payload.energy,
-    morale: payload.morale,
-  });
+  // Note: Embedding jobs are now automatically created by the insertCycle function
+  // in db.ts as part of the integrated job queue system
   return id;
 });
 
@@ -262,8 +293,15 @@ ipcMain.handle('wc:get-session', (_, sessionId: string) => {
   return getSessionById(sessionId);
 });
 
-ipcMain.handle('wc:vector-search', async (_, query: string, k = 5) => {
-  return searchSimilar(query, k);
+ipcMain.handle('wc:vector-search', async (_, query: string, k = 8) => {
+  try {
+    // Use cascading search which intelligently searches across all levels
+    const results = await cascadingSearch(query, query, k);
+    return results;
+  } catch (error) {
+    console.error('Vector search failed:', error);
+    return [];
+  }
 });
 
 ipcMain.handle('wc:list-sessions', () => {
@@ -276,19 +314,13 @@ ipcMain.handle('wc:get-settings', () => {
   return getSettings();
 });
 
-ipcMain.handle('wc:save-settings', (_e, patch: Partial<ReturnType<typeof getSettings>>) => {
-  saveSettings(patch);
-
-  // Hotkey update if changed
-  if (patch.hotkey && patch.hotkey !== currentHotkey) {
-    registerGlobalHotkey(patch.hotkey);
-  }
-  return { ok: true };
-});
+// Note: wc:save-settings handler moved to the embedding section below for enhanced functionality
 
 ipcMain.handle('wc:save-openai-key', (_e, plainKey: string) => {
   if (!plainKey) {
     saveEncryptedKey(null, 0);
+    // Reset embedding client when key is removed
+    embeddingManager.resetClient();
     return { ok: true };
   }
 
@@ -300,6 +332,10 @@ ipcMain.handle('wc:save-openai-key', (_e, plainKey: string) => {
       console.warn('safeStorage encryption not available, storing key in plain text');
       saveEncryptedKey(Buffer.from(plainKey, 'utf-8'), 0);
     }
+    
+    // Reset embedding client to use the new key
+    embeddingManager.resetClient();
+    
   } catch (err) {
     console.error('Failed to encrypt/store OpenAI key', err);
     throw err;
@@ -366,5 +402,74 @@ ipcMain.handle('wc:cycle-note-delete', (_e, noteId: string) => {
 
 ipcMain.handle('wc:cycle-note-update', (_e, noteId: string, text: string) => {
   updateCycleNote(noteId, text);
+  return { ok: true };
+});
+
+// -------- Embedding System IPC --------
+
+ipcMain.handle('wc:embedding-status', () => {
+  try {
+    return embeddingManager.getStatus();
+  } catch (error) {
+    console.error('Failed to get embedding status:', error);
+    return {
+      isProcessing: false,
+      queueStatus: { pending: 0, processing: 0, total: 0 },
+      statistics: { pending: 0, processing: 0, done: 0, error: 0 }
+    };
+  }
+});
+
+ipcMain.handle('wc:embedding-search', async (_, query: string, options = {}) => {
+  try {
+    return await embeddingManager.search(query, options);
+  } catch (error) {
+    console.error('Embedding search failed:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('wc:embedding-cascading-search', async (_, query: string, userIntent: string, k = 8) => {
+  try {
+    return await embeddingManager.cascadingSearch(query, userIntent, k);
+  } catch (error) {
+    console.error('Cascading search failed:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('wc:embedding-backfill', async (_, limit = 100) => {
+  try {
+    console.log('Manual embedding backfill requested');
+    return await embeddingManager.backfillExistingData(limit);
+  } catch (error) {
+    console.error('Embedding backfill failed:', error);
+    return { sessionsProcessed: 0, cyclesProcessed: 0, jobsCreated: 0 };
+  }
+});
+
+// Handle settings changes that affect embeddings
+ipcMain.handle('wc:save-settings', (_e, patch: Partial<ReturnType<typeof getSettings>>) => {
+  const previousSettings = getSettings();
+  saveSettings(patch);
+
+  // Hotkey update if changed
+  if (patch.hotkey && patch.hotkey !== currentHotkey) {
+    registerGlobalHotkey(patch.hotkey);
+  }
+  
+  // If AI was just enabled, trigger backfill
+  if (patch.aiEnabled && !previousSettings.aiEnabled) {
+    console.log('AI just enabled - triggering backfill of existing data');
+    setTimeout(() => {
+      embeddingManager.backfillExistingData(50);
+    }, 1000);
+  }
+  
+  // If OpenAI settings changed, reset the client
+  if (patch.aiEnabled !== undefined) {
+    embeddingManager.resetClient();
+  }
+  
   return { ok: true };
 });
