@@ -27,6 +27,7 @@ export interface SessionIntentions {
   workMinutes: number;
   breakMinutes: number;
   cyclesPlanned: number;
+  miscNotes: string;
 }
 
 export interface CycleData {

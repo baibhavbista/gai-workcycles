@@ -147,6 +147,7 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
             importance: intentions.importance,
             definition_of_done: intentions.definitionOfDone,
             hazards: intentions.hazards,
+            misc_notes: intentions.miscNotes,
             concrete: intentions.concrete,
           });
         } else {

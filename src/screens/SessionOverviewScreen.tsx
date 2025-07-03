@@ -44,6 +44,9 @@ ${currentSession.intentions.definitionOfDone}
 ### Any risks / hazards?
 ${currentSession.intentions.hazards}
 
+### Anything else noteworthy?
+${currentSession.intentions.miscNotes}
+
 **Concrete/Measurable:** ${currentSession.intentions.concrete ? 'Yes' : 'No'}
 
 ## Work Cycles
@@ -153,6 +156,13 @@ ${currentSession.cycles.map((cycle, idx) => `
               <div>
                 <h4 className="font-medium text-gray-900 mb-1">Any risks / hazards?</h4>
                 <p className="text-gray-700 text-sm">{currentSession.intentions.hazards}</p>
+              </div>
+            )}
+            
+            {currentSession.intentions.miscNotes && (
+              <div>
+                <h4 className="font-medium text-gray-900 mb-1">Anything else noteworthy?</h4>
+                <p className="text-gray-700 text-sm">{currentSession.intentions.miscNotes}</p>
               </div>
             )}
             

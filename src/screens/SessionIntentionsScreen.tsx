@@ -17,6 +17,7 @@ export function SessionIntentionsScreen() {
     workMinutes: settings?.workMinutes ?? 30,
     breakMinutes: settings?.breakMinutes ?? 5,
     cyclesPlanned: settings?.cyclesPlanned ?? 6,
+    miscNotes: '',
   }));
   const [showSettings, setShowSettings] = useState(false);
   
@@ -150,6 +151,21 @@ export function SessionIntentionsScreen() {
                     If not, maybe update above to have clear, measurable outcomes
                   </div>
                 </label>
+              </div>
+
+              <div>
+                <label className="block font-medium text-gray-900 mb-1 text-sm">
+                  Anything else noteworthy?
+                </label>
+                <textarea
+                  value={intentions.miscNotes}
+                  onChange={(e) => setIntentions(prev => ({ ...prev, miscNotes: e.target.value }))}
+                  placeholder="Any other thoughts, notes, or considerations..."
+                  className="w-full p-3 border border-gray-200 rounded-lg resize-none focus:ring-1 focus:ring-[#482F60] focus:border-[#482F60] transition-colors text-sm"
+                  rows={2}
+                  onInput={autoResize}
+                  style={{overflow:'hidden'}}
+                />
               </div>
             </div>
           </div>

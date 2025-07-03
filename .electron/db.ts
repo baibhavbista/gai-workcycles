@@ -70,10 +70,10 @@ try {
 const insertSessionStmt = db.prepare(`
   INSERT INTO sessions (
     id, started_at, work_minutes, break_minutes, cycles_planned,
-    plan_objective, plan_importance, plan_done_definition, plan_hazards, plan_concrete, completed
+    plan_objective, plan_importance, plan_done_definition, plan_hazards, plan_misc_notes, plan_concrete, completed
   ) VALUES (
     @id, datetime('now'), @work_minutes, @break_minutes, @cycles_planned,
-    @objective, @importance, @definition_of_done, @hazards, @concrete, 0
+    @objective, @importance, @definition_of_done, @hazards, @misc_notes, @concrete, 0
   )
 `);
 
@@ -139,6 +139,7 @@ export interface SessionPayload {
   importance: string;
   definition_of_done: string;
   hazards: string;
+  misc_notes: string;
   concrete: boolean;
 }
 
@@ -333,6 +334,7 @@ export function listSessionsWithCycles() {
       importance: row.plan_importance,
       definitionOfDone: row.plan_done_definition,
       hazards: row.plan_hazards,
+      miscNotes: row.plan_misc_notes,
       concrete: !!row.plan_concrete,
       workMinutes: row.work_minutes,
       breakMinutes: row.break_minutes,
@@ -342,6 +344,7 @@ export function listSessionsWithCycles() {
       id: row.id,
       startedAt: (() => {
         const str = typeof row.started_at === 'string' ? row.started_at : '';
+        // FIXME: unsure if we should save this data as GMT or localtime
         // Convert "YYYY-MM-DD HH:MM:SS" → "YYYY-MM-DDTHH:MM:SSZ"
         const iso = str.includes('T') ? str : str.replace(' ', 'T') + 'Z';
         return new Date(iso);

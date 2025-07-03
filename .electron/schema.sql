@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   plan_importance      TEXT,
   plan_done_definition TEXT,
   plan_hazards         TEXT,
+  plan_misc_notes      TEXT,
   plan_concrete    INTEGER NOT NULL DEFAULT 0 CHECK(plan_concrete IN (0,1)),
   review_accomplishments TEXT,
   review_comparison      TEXT,
