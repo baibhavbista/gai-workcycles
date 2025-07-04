@@ -48,7 +48,7 @@ export function BreakCompleteScreen() {
             <ArrowRight className="w-8 h-8 mb-3" />
             <span className="font-semibold mb-1">Next Cycle</span>
             <span className="text-sm text-purple-200">
-              Cycle {currentCycleNumber + 1}
+              Cycle {currentCycleNumber}
             </span>
           </button>
         </div>

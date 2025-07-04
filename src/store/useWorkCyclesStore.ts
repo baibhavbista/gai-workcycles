@@ -238,12 +238,12 @@ export const useWorkCyclesStore = create<WorkCyclesState>()(
           currentCycle: null,
         });
         
-        // Check if this was the last cycle
-        if (updatedSession.currentCycleIdx >= updatedSession.intentions.cyclesPlanned) {
-          set({ currentScreen: 'session-review' });
-        } else {
-          set({ currentScreen: 'break' });
-        }
+        // // Check if this was the last cycle
+        // if (updatedSession.currentCycleIdx >= updatedSession.intentions.cyclesPlanned) {
+        //   set({ currentScreen: 'session-review' });
+        // } else {
+        //   set({ currentScreen: 'break' });
+        // }
       },
       
       completeSession: () => {

@@ -18,7 +18,7 @@ const formSchema: QuestionSpec[] = [
 ];
 
 export function CycleReflectionScreen() {
-  const { currentCycle, currentSession, completeCycle } = useWorkCyclesStore();
+  const { currentCycle, currentSession, completeCycle, setScreen } = useWorkCyclesStore();
   const [reflection, setReflection] = useState({
     status: '' as CycleStatus,
     noteworthy: '',
@@ -92,6 +92,14 @@ export function CycleReflectionScreen() {
 
   const handleSubmit = (action: 'break' | 'finish') => {
     completeCycle(reflection);
+    if (action === 'finish') {
+      // mark cycle as completed and then go to session review
+      setScreen('session-review');
+    } else if (currentSession && (currentCycleNumber >= currentSession.intentions.cyclesPlanned)) {
+      setScreen('session-review');
+    } else {
+      setScreen('break');
+    }
   };
 
 

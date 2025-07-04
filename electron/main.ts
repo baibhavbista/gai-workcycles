@@ -202,14 +202,29 @@ app.whenReady().then(async () => {
   // Initialize the embedding system
   try {
     console.log('Starting WorkCycles embedding system...');
+
+    const settings = getSettings();
+
+
+    if (!settings.aiEnabled) throw new Error('AI is not enabled');
+
+    const keyData = getEncryptedKey();
+    if (!keyData) throw new Error('No OpenAI key found');
+
+    const apiKey = keyData.encrypted 
+      ? safeStorage.decryptString(keyData.cipher).trim()
+      : keyData.cipher.toString('utf-8').trim();
     
+    if (!apiKey) throw new Error('No OpenAI key found');
+    // if apiKey does not begin with "sk-" return
+    if (!apiKey.startsWith('sk-')) throw new Error('Invalid OpenAI key');
+
     // Start the background embedding processor
     embeddingManager.startProcessing();
     
     // Check if we should backfill existing data when AI is first enabled
-    const settings = getSettings();
-    if (settings.aiEnabled) {
-      console.log('AI enabled - checking for existing data to process...');
+
+    console.log('AI enabled - checking for existing data to process...');
       setTimeout(async () => {
         try {
           await embeddingManager.backfillExistingData(50);
@@ -217,7 +232,6 @@ app.whenReady().then(async () => {
           console.error('Startup backfill failed:', error);
         }
       }, 5000); // Wait 5 seconds after app start
-    }
     
     console.log('Embedding system initialized successfully');
   } catch (error) {
