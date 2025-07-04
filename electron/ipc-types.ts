@@ -1,3 +1,5 @@
+import { Session } from "../src/types";
+
 // IPC Types for Embedding System
 // These types help ensure type safety between main and renderer processes
 
@@ -129,4 +131,21 @@ export type EmbeddingIPC = {
   [EMBEDDING_IPC_CHANNELS.ENHANCED_CASCADING_SEARCH]: (query: string, userIntent: string, k?: number, options?: SearchOptions) => Promise<EnhancedSearchResult[]>;
   [EMBEDDING_IPC_CHANNELS.SEARCH_SUGGESTIONS]: (partialQuery: string, limit?: number) => Promise<string[]>;
   [EMBEDDING_IPC_CHANNELS.SEARCH_ANALYTICS]: () => Promise<SearchAnalytics>;
-}; 
+};
+
+export interface ElectronAPI {
+  listSessions: () => Promise<Session[]>;
+  search: (query: string, mode: 'ai' | 'basic') => Promise<any[]>;
+  getEmbeddingStatus: () => Promise<any>;
+  onEmbeddingStatusUpdate: (callback: (status: any) => void) => () => void;
+  triggerEmbeddingBackfill: () => Promise<void>;
+  clearVectorStore: () => Promise<void>;
+  sendMessage: (messages: any[]) => Promise<void>;
+  onResponse: (callback: (response: any) => void) => () => void;
+}
+
+declare global {
+  interface Window {
+    // ... existing code ...
+  }
+} 

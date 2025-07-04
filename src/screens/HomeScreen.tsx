@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Clock, Target, Play, Calendar, TrendingUp, Bot, Settings as SettingsIcon } from 'lucide-react';
 import { useWorkCyclesStore } from '../store/useWorkCyclesStore';
 import { isElectron, listSessions } from '../electron-ipc';
+import { CycleData, Session } from '../types';
+import { AnalystChatModal } from '../components/AnalystChatModal';
+import { useChatStore } from '../store/useChatStore';
 
 export function HomeScreen() {
   const { setScreen, sessions } = useWorkCyclesStore();
   const [showInfo, setShowInfo] = useState(false);
-  const [remoteSessions, setRemoteSessions] = useState<any[] | null>(null);
+  const [remoteSessions, setRemoteSessions] = useState<Session[] | null>(null);
+  const { toggleChat } = useChatStore();
 
   useEffect(() => {
     if (isElectron()) {
@@ -20,11 +24,11 @@ export function HomeScreen() {
 
   // Filter sessions for today (local date)
   const todayStr = new Date().toDateString();
-  const todays = allSessions.filter((s: any) => new Date(s.startedAt).toDateString() === todayStr);
+  const todays = allSessions.filter((s: Session) => new Date(s.startedAt).toDateString() === todayStr);
 
-  const getSuccessRate = (session: any) => {
+  const getSuccessRate = (session: Session) => {
     if (!session.cycles?.length) return 0;
-    const hits = session.cycles.filter((c: any) => c.status === 'hit').length;
+    const hits = session.cycles.filter((c: CycleData) => c.status === 'hit').length;
     return Math.round((hits / session.cycles.length) * 100);
   };
 
@@ -124,7 +128,7 @@ export function HomeScreen() {
         
         {/* Floating AI chat button */}
         <button
-          onClick={() => alert('Yet to be implemented')}
+          onClick={toggleChat}
           className="fixed bottom-20 right-6 w-10 h-10 rounded-full bg-[#482F60] text-white flex items-center justify-center shadow-lg hover:bg-[#3d2651] transition z-40"
           aria-label="Chat with AI"
         >
@@ -139,6 +143,8 @@ export function HomeScreen() {
         >
           ?
         </button>
+
+        <AnalystChatModal />
 
         {/* Info modal */}
         {showInfo && (

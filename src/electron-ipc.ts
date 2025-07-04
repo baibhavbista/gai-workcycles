@@ -195,4 +195,26 @@ export const clearEmbeddingCache = () => {
   const api = getApi();
   if (!api) throw new Error('Electron API not available');
   return api.clearEmbeddingCache() as Promise<{ ok: boolean }>;
+};
+
+// -------- Conversational Agent --------
+
+import { ChatMessage } from './types';
+
+export const agentSendMessage = (messages: ChatMessage[]) => {
+  const api = getApi();
+  if (!api) {
+    console.warn('Agent API not available. Running in mock mode.');
+    return;
+  }
+  api.sendMessage(messages);
+};
+
+export const agentOnResponse = (callback: (response: any) => void) => {
+  const api = getApi();
+  if (!api) {
+    // Return an empty cleanup function in web mode
+    return () => {};
+  }
+  return api.onResponse(callback);
 }; 

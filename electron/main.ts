@@ -25,6 +25,7 @@ import {
   CycleNotePayload,
 } from './db.ts';
 import { embeddingManager } from './embedding-manager.ts';
+import { conversationalAgent } from './conversational-agent.ts';
 import { 
   searchEmbeddings, 
   cascadingSearch
@@ -638,4 +639,15 @@ ipcMain.handle('wc:clear-embedding-cache', () => {
     console.error('Failed to clear embedding cache:', error);
     return { ok: false };
   }
+});
+
+// --- Conversational Agent (Placeholder) ---
+ipcMain.handle('agent:sendMessage', async (_event, messages) => {
+  console.log('Agent received messages:', messages);
+  // This will later invoke the LangGraph agent.
+  const response = await conversationalAgent.invoke({ messages });
+  win?.webContents.send('agent:onResponse', {
+    type: 'text',
+    content: response.messages[response.messages.length - 1].content,
+  });
 });

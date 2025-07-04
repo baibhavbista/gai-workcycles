@@ -76,3 +76,10 @@ export interface Settings {
   hotkey: string;
   trayTimerEnabled: boolean;
 }
+
+export interface ChatMessage {
+  id: string;
+  type: 'user' | 'bot';
+  content: string;
+  chartData?: Record<string, unknown>;
+}

@@ -47,6 +47,15 @@ contextBridge.exposeInMainWorld('wc', {
   getSearchSuggestions: (query) => ipcRenderer.invoke('wc:get-search-suggestions', query),
   getEmbeddingQueueStatus: () => ipcRenderer.invoke('wc:embedding-queue-status'),
   getEmbeddingDbStats: () => ipcRenderer.invoke('wc:embedding-db-stats'),
-  triggerEmbeddingBackfill: (limit) => ipcRenderer.invoke('wc:trigger-embedding-backfill', limit),
+  triggerEmbeddingBackfill: () => ipcRenderer.invoke('trigger-embedding-backfill'),
   clearEmbeddingCache: () => ipcRenderer.invoke('wc:clear-embedding-cache'),
+  clearVectorStore: () => ipcRenderer.invoke('clear-vector-store'),
+
+  // Conversational Agent
+  sendMessage: (messages) => ipcRenderer.invoke('agent:sendMessage', messages),
+  onResponse: (callback) => {
+    const channel = 'agent:onResponse';
+    ipcRenderer.on(channel, (_event, response) => callback(response));
+    return () => ipcRenderer.removeAllListeners(channel);
+  }
 }); 
